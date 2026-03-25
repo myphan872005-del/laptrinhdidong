@@ -1,0 +1,235 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="com.ued.custommaps"
+4    android:versionCode="1"
+5    android:versionName="1.0" >
+6
+7    <uses-sdk
+8        android:minSdkVersion="24"
+9        android:targetSdkVersion="34" />
+10
+11    <uses-permission android:name="android.permission.INTERNET" />
+11-->C:\Users\luyen\AndroidStudioProjects\UEDCustomMapsNew\app\src\main\AndroidManifest.xml:5:5-67
+11-->C:\Users\luyen\AndroidStudioProjects\UEDCustomMapsNew\app\src\main\AndroidManifest.xml:5:22-64
+12    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+12-->C:\Users\luyen\AndroidStudioProjects\UEDCustomMapsNew\app\src\main\AndroidManifest.xml:6:5-79
+12-->C:\Users\luyen\AndroidStudioProjects\UEDCustomMapsNew\app\src\main\AndroidManifest.xml:6:22-76
+13    <uses-permission
+13-->C:\Users\luyen\AndroidStudioProjects\UEDCustomMapsNew\app\src\main\AndroidManifest.xml:8:5-10:40
+14        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+14-->C:\Users\luyen\AndroidStudioProjects\UEDCustomMapsNew\app\src\main\AndroidManifest.xml:8:22-78
+15        android:maxSdkVersion="32" />
+15-->C:\Users\luyen\AndroidStudioProjects\UEDCustomMapsNew\app\src\main\AndroidManifest.xml:9:9-35
+16    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+16-->C:\Users\luyen\AndroidStudioProjects\UEDCustomMapsNew\app\src\main\AndroidManifest.xml:12:5-79
+16-->C:\Users\luyen\AndroidStudioProjects\UEDCustomMapsNew\app\src\main\AndroidManifest.xml:12:22-76
+17    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+17-->C:\Users\luyen\AndroidStudioProjects\UEDCustomMapsNew\app\src\main\AndroidManifest.xml:13:5-81
+17-->C:\Users\luyen\AndroidStudioProjects\UEDCustomMapsNew\app\src\main\AndroidManifest.xml:13:22-78
+18    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+18-->C:\Users\luyen\AndroidStudioProjects\UEDCustomMapsNew\app\src\main\AndroidManifest.xml:15:5-85
+18-->C:\Users\luyen\AndroidStudioProjects\UEDCustomMapsNew\app\src\main\AndroidManifest.xml:15:22-82
+19    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+19-->C:\Users\luyen\AndroidStudioProjects\UEDCustomMapsNew\app\src\main\AndroidManifest.xml:17:5-77
+19-->C:\Users\luyen\AndroidStudioProjects\UEDCustomMapsNew\app\src\main\AndroidManifest.xml:17:22-74
+20    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+20-->C:\Users\luyen\AndroidStudioProjects\UEDCustomMapsNew\app\src\main\AndroidManifest.xml:19:5-86
+20-->C:\Users\luyen\AndroidStudioProjects\UEDCustomMapsNew\app\src\main\AndroidManifest.xml:19:22-83
+21
+22    <permission
+22-->[androidx.core:core:1.12.0] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\102bb4ca6e8b3e009636483291d8df3f\transformed\core-1.12.0\AndroidManifest.xml:22:5-24:47
+23        android:name="com.ued.custommaps.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+23-->[androidx.core:core:1.12.0] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\102bb4ca6e8b3e009636483291d8df3f\transformed\core-1.12.0\AndroidManifest.xml:23:9-81
+24        android:protectionLevel="signature" />
+24-->[androidx.core:core:1.12.0] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\102bb4ca6e8b3e009636483291d8df3f\transformed\core-1.12.0\AndroidManifest.xml:24:9-44
+25
+26    <uses-permission android:name="com.ued.custommaps.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
+26-->[androidx.core:core:1.12.0] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\102bb4ca6e8b3e009636483291d8df3f\transformed\core-1.12.0\AndroidManifest.xml:26:5-97
+26-->[androidx.core:core:1.12.0] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\102bb4ca6e8b3e009636483291d8df3f\transformed\core-1.12.0\AndroidManifest.xml:26:22-94
+27
+28    <supports-screens
+28-->[org.osmdroid:osmdroid-android:6.1.18] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\75f2096321b3c930ca2ff4e86bc41058\transformed\osmdroid-android-6.1.18\AndroidManifest.xml:9:5-12:40
+29        android:anyDensity="true"
+29-->[org.osmdroid:osmdroid-android:6.1.18] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\75f2096321b3c930ca2ff4e86bc41058\transformed\osmdroid-android-6.1.18\AndroidManifest.xml:10:9-34
+30        android:largeScreens="true"
+30-->[org.osmdroid:osmdroid-android:6.1.18] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\75f2096321b3c930ca2ff4e86bc41058\transformed\osmdroid-android-6.1.18\AndroidManifest.xml:11:9-36
+31        android:normalScreens="true" />
+31-->[org.osmdroid:osmdroid-android:6.1.18] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\75f2096321b3c930ca2ff4e86bc41058\transformed\osmdroid-android-6.1.18\AndroidManifest.xml:12:9-37
+32
+33    <uses-feature
+33-->[org.osmdroid:osmdroid-android:6.1.18] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\75f2096321b3c930ca2ff4e86bc41058\transformed\osmdroid-android-6.1.18\AndroidManifest.xml:14:5-16:36
+34        android:name="android.hardware.location.network"
+34-->[org.osmdroid:osmdroid-android:6.1.18] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\75f2096321b3c930ca2ff4e86bc41058\transformed\osmdroid-android-6.1.18\AndroidManifest.xml:15:9-57
+35        android:required="false" />
+35-->[org.osmdroid:osmdroid-android:6.1.18] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\75f2096321b3c930ca2ff4e86bc41058\transformed\osmdroid-android-6.1.18\AndroidManifest.xml:16:9-33
+36    <uses-feature
+36-->[org.osmdroid:osmdroid-android:6.1.18] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\75f2096321b3c930ca2ff4e86bc41058\transformed\osmdroid-android-6.1.18\AndroidManifest.xml:17:5-19:36
+37        android:name="android.hardware.location.gps"
+37-->[org.osmdroid:osmdroid-android:6.1.18] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\75f2096321b3c930ca2ff4e86bc41058\transformed\osmdroid-android-6.1.18\AndroidManifest.xml:18:9-53
+38        android:required="false" />
+38-->[org.osmdroid:osmdroid-android:6.1.18] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\75f2096321b3c930ca2ff4e86bc41058\transformed\osmdroid-android-6.1.18\AndroidManifest.xml:19:9-33
+39    <uses-feature
+39-->[org.osmdroid:osmdroid-android:6.1.18] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\75f2096321b3c930ca2ff4e86bc41058\transformed\osmdroid-android-6.1.18\AndroidManifest.xml:20:5-22:36
+40        android:name="android.hardware.telephony"
+40-->[org.osmdroid:osmdroid-android:6.1.18] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\75f2096321b3c930ca2ff4e86bc41058\transformed\osmdroid-android-6.1.18\AndroidManifest.xml:21:9-50
+41        android:required="false" />
+41-->[org.osmdroid:osmdroid-android:6.1.18] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\75f2096321b3c930ca2ff4e86bc41058\transformed\osmdroid-android-6.1.18\AndroidManifest.xml:22:9-33
+42    <uses-feature
+42-->[org.osmdroid:osmdroid-android:6.1.18] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\75f2096321b3c930ca2ff4e86bc41058\transformed\osmdroid-android-6.1.18\AndroidManifest.xml:23:5-25:36
+43        android:name="android.hardware.wifi"
+43-->[org.osmdroid:osmdroid-android:6.1.18] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\75f2096321b3c930ca2ff4e86bc41058\transformed\osmdroid-android-6.1.18\AndroidManifest.xml:24:9-45
+44        android:required="false" />
+44-->[org.osmdroid:osmdroid-android:6.1.18] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\75f2096321b3c930ca2ff4e86bc41058\transformed\osmdroid-android-6.1.18\AndroidManifest.xml:25:9-33
+45
+46    <application
+46-->C:\Users\luyen\AndroidStudioProjects\UEDCustomMapsNew\app\src\main\AndroidManifest.xml:21:5-48:19
+47        android:allowBackup="true"
+47-->C:\Users\luyen\AndroidStudioProjects\UEDCustomMapsNew\app\src\main\AndroidManifest.xml:22:9-35
+48        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
+48-->[androidx.core:core:1.12.0] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\102bb4ca6e8b3e009636483291d8df3f\transformed\core-1.12.0\AndroidManifest.xml:28:18-86
+49        android:dataExtractionRules="@xml/data_extraction_rules"
+49-->C:\Users\luyen\AndroidStudioProjects\UEDCustomMapsNew\app\src\main\AndroidManifest.xml:23:9-65
+50        android:debuggable="true"
+51        android:extractNativeLibs="false"
+52        android:fullBackupContent="@xml/backup_rules"
+52-->C:\Users\luyen\AndroidStudioProjects\UEDCustomMapsNew\app\src\main\AndroidManifest.xml:24:9-54
+53        android:icon="@mipmap/ic_launcher"
+53-->C:\Users\luyen\AndroidStudioProjects\UEDCustomMapsNew\app\src\main\AndroidManifest.xml:25:9-43
+54        android:label="@string/app_name"
+54-->C:\Users\luyen\AndroidStudioProjects\UEDCustomMapsNew\app\src\main\AndroidManifest.xml:26:9-41
+55        android:roundIcon="@mipmap/ic_launcher_round"
+55-->C:\Users\luyen\AndroidStudioProjects\UEDCustomMapsNew\app\src\main\AndroidManifest.xml:27:9-54
+56        android:supportsRtl="true"
+56-->C:\Users\luyen\AndroidStudioProjects\UEDCustomMapsNew\app\src\main\AndroidManifest.xml:28:9-35
+57        android:testOnly="true"
+58        android:theme="@style/Theme.UEDCustomMaps"
+58-->C:\Users\luyen\AndroidStudioProjects\UEDCustomMapsNew\app\src\main\AndroidManifest.xml:29:9-51
+59        android:usesCleartextTraffic="true" >
+59-->C:\Users\luyen\AndroidStudioProjects\UEDCustomMapsNew\app\src\main\AndroidManifest.xml:30:9-44
+60        <service
+60-->C:\Users\luyen\AndroidStudioProjects\UEDCustomMapsNew\app\src\main\AndroidManifest.xml:33:9-37:56
+61            android:name="com.ued.custommaps.TrackingService"
+61-->C:\Users\luyen\AndroidStudioProjects\UEDCustomMapsNew\app\src\main\AndroidManifest.xml:34:13-44
+62            android:enabled="true"
+62-->C:\Users\luyen\AndroidStudioProjects\UEDCustomMapsNew\app\src\main\AndroidManifest.xml:35:13-35
+63            android:exported="false"
+63-->C:\Users\luyen\AndroidStudioProjects\UEDCustomMapsNew\app\src\main\AndroidManifest.xml:36:13-37
+64            android:foregroundServiceType="location" />
+64-->C:\Users\luyen\AndroidStudioProjects\UEDCustomMapsNew\app\src\main\AndroidManifest.xml:37:13-53
+65
+66        <activity
+66-->C:\Users\luyen\AndroidStudioProjects\UEDCustomMapsNew\app\src\main\AndroidManifest.xml:39:9-47:20
+67            android:name="com.ued.custommaps.MainActivity"
+67-->C:\Users\luyen\AndroidStudioProjects\UEDCustomMapsNew\app\src\main\AndroidManifest.xml:40:13-41
+68            android:exported="true"
+68-->C:\Users\luyen\AndroidStudioProjects\UEDCustomMapsNew\app\src\main\AndroidManifest.xml:41:13-36
+69            android:theme="@style/Theme.UEDCustomMaps" >
+69-->C:\Users\luyen\AndroidStudioProjects\UEDCustomMapsNew\app\src\main\AndroidManifest.xml:42:13-55
+70            <intent-filter>
+70-->C:\Users\luyen\AndroidStudioProjects\UEDCustomMapsNew\app\src\main\AndroidManifest.xml:43:13-46:29
+71                <action android:name="android.intent.action.MAIN" />
+71-->C:\Users\luyen\AndroidStudioProjects\UEDCustomMapsNew\app\src\main\AndroidManifest.xml:44:17-69
+71-->C:\Users\luyen\AndroidStudioProjects\UEDCustomMapsNew\app\src\main\AndroidManifest.xml:44:25-66
+72
+73                <category android:name="android.intent.category.LAUNCHER" />
+73-->C:\Users\luyen\AndroidStudioProjects\UEDCustomMapsNew\app\src\main\AndroidManifest.xml:45:17-77
+73-->C:\Users\luyen\AndroidStudioProjects\UEDCustomMapsNew\app\src\main\AndroidManifest.xml:45:27-74
+74            </intent-filter>
+75        </activity>
+76        <activity
+76-->[com.google.android.gms:play-services-base:18.1.0] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\f24602fc51d36b74dde59363388c4ba7\transformed\play-services-base-18.1.0\AndroidManifest.xml:20:9-22:45
+77            android:name="com.google.android.gms.common.api.GoogleApiActivity"
+77-->[com.google.android.gms:play-services-base:18.1.0] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\f24602fc51d36b74dde59363388c4ba7\transformed\play-services-base-18.1.0\AndroidManifest.xml:20:19-85
+78            android:exported="false"
+78-->[com.google.android.gms:play-services-base:18.1.0] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\f24602fc51d36b74dde59363388c4ba7\transformed\play-services-base-18.1.0\AndroidManifest.xml:22:19-43
+79            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+79-->[com.google.android.gms:play-services-base:18.1.0] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\f24602fc51d36b74dde59363388c4ba7\transformed\play-services-base-18.1.0\AndroidManifest.xml:21:19-78
+80
+81        <meta-data
+81-->[com.google.android.gms:play-services-basement:18.1.0] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\d2669848cee7fb26b80ae8b9ee27b24d\transformed\play-services-basement-18.1.0\AndroidManifest.xml:21:9-23:69
+82            android:name="com.google.android.gms.version"
+82-->[com.google.android.gms:play-services-basement:18.1.0] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\d2669848cee7fb26b80ae8b9ee27b24d\transformed\play-services-basement-18.1.0\AndroidManifest.xml:22:13-58
+83            android:value="@integer/google_play_services_version" />
+83-->[com.google.android.gms:play-services-basement:18.1.0] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\d2669848cee7fb26b80ae8b9ee27b24d\transformed\play-services-basement-18.1.0\AndroidManifest.xml:23:13-66
+84
+85        <activity
+85-->[androidx.compose.ui:ui-test-manifest:1.5.4] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\d1b5ac7c04932e440e8fcb69f74aeeca\transformed\ui-test-manifest-1.5.4\AndroidManifest.xml:23:9-25:39
+86            android:name="androidx.activity.ComponentActivity"
+86-->[androidx.compose.ui:ui-test-manifest:1.5.4] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\d1b5ac7c04932e440e8fcb69f74aeeca\transformed\ui-test-manifest-1.5.4\AndroidManifest.xml:24:13-63
+87            android:exported="true" />
+87-->[androidx.compose.ui:ui-test-manifest:1.5.4] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\d1b5ac7c04932e440e8fcb69f74aeeca\transformed\ui-test-manifest-1.5.4\AndroidManifest.xml:25:13-36
+88        <activity
+88-->[androidx.compose.ui:ui-tooling-android:1.5.4] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\a168a89cbfd6ca28487f233655824a11\transformed\ui-tooling-release\AndroidManifest.xml:23:9-25:39
+89            android:name="androidx.compose.ui.tooling.PreviewActivity"
+89-->[androidx.compose.ui:ui-tooling-android:1.5.4] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\a168a89cbfd6ca28487f233655824a11\transformed\ui-tooling-release\AndroidManifest.xml:24:13-71
+90            android:exported="true" />
+90-->[androidx.compose.ui:ui-tooling-android:1.5.4] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\a168a89cbfd6ca28487f233655824a11\transformed\ui-tooling-release\AndroidManifest.xml:25:13-36
+91
+92        <provider
+92-->[androidx.emoji2:emoji2:1.4.0] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\f4cfda6a42130480858f584d27e44b57\transformed\emoji2-1.4.0\AndroidManifest.xml:24:9-32:20
+93            android:name="androidx.startup.InitializationProvider"
+93-->[androidx.emoji2:emoji2:1.4.0] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\f4cfda6a42130480858f584d27e44b57\transformed\emoji2-1.4.0\AndroidManifest.xml:25:13-67
+94            android:authorities="com.ued.custommaps.androidx-startup"
+94-->[androidx.emoji2:emoji2:1.4.0] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\f4cfda6a42130480858f584d27e44b57\transformed\emoji2-1.4.0\AndroidManifest.xml:26:13-68
+95            android:exported="false" >
+95-->[androidx.emoji2:emoji2:1.4.0] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\f4cfda6a42130480858f584d27e44b57\transformed\emoji2-1.4.0\AndroidManifest.xml:27:13-37
+96            <meta-data
+96-->[androidx.emoji2:emoji2:1.4.0] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\f4cfda6a42130480858f584d27e44b57\transformed\emoji2-1.4.0\AndroidManifest.xml:29:13-31:52
+97                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+97-->[androidx.emoji2:emoji2:1.4.0] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\f4cfda6a42130480858f584d27e44b57\transformed\emoji2-1.4.0\AndroidManifest.xml:30:17-75
+98                android:value="androidx.startup" />
+98-->[androidx.emoji2:emoji2:1.4.0] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\f4cfda6a42130480858f584d27e44b57\transformed\emoji2-1.4.0\AndroidManifest.xml:31:17-49
+99            <meta-data
+99-->[androidx.lifecycle:lifecycle-process:2.6.2] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\f5f3e85556bf376399d0824e3ca7b4f6\transformed\lifecycle-process-2.6.2\AndroidManifest.xml:29:13-31:52
+100                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
+100-->[androidx.lifecycle:lifecycle-process:2.6.2] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\f5f3e85556bf376399d0824e3ca7b4f6\transformed\lifecycle-process-2.6.2\AndroidManifest.xml:30:17-78
+101                android:value="androidx.startup" />
+101-->[androidx.lifecycle:lifecycle-process:2.6.2] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\f5f3e85556bf376399d0824e3ca7b4f6\transformed\lifecycle-process-2.6.2\AndroidManifest.xml:31:17-49
+102            <meta-data
+102-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\7d0839d17f83ba0f2cbd69796685398f\transformed\profileinstaller-1.3.0\AndroidManifest.xml:29:13-31:52
+103                android:name="androidx.profileinstaller.ProfileInstallerInitializer"
+103-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\7d0839d17f83ba0f2cbd69796685398f\transformed\profileinstaller-1.3.0\AndroidManifest.xml:30:17-85
+104                android:value="androidx.startup" />
+104-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\7d0839d17f83ba0f2cbd69796685398f\transformed\profileinstaller-1.3.0\AndroidManifest.xml:31:17-49
+105        </provider>
+106
+107        <receiver
+107-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\7d0839d17f83ba0f2cbd69796685398f\transformed\profileinstaller-1.3.0\AndroidManifest.xml:34:9-52:20
+108            android:name="androidx.profileinstaller.ProfileInstallReceiver"
+108-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\7d0839d17f83ba0f2cbd69796685398f\transformed\profileinstaller-1.3.0\AndroidManifest.xml:35:13-76
+109            android:directBootAware="false"
+109-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\7d0839d17f83ba0f2cbd69796685398f\transformed\profileinstaller-1.3.0\AndroidManifest.xml:36:13-44
+110            android:enabled="true"
+110-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\7d0839d17f83ba0f2cbd69796685398f\transformed\profileinstaller-1.3.0\AndroidManifest.xml:37:13-35
+111            android:exported="true"
+111-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\7d0839d17f83ba0f2cbd69796685398f\transformed\profileinstaller-1.3.0\AndroidManifest.xml:38:13-36
+112            android:permission="android.permission.DUMP" >
+112-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\7d0839d17f83ba0f2cbd69796685398f\transformed\profileinstaller-1.3.0\AndroidManifest.xml:39:13-57
+113            <intent-filter>
+113-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\7d0839d17f83ba0f2cbd69796685398f\transformed\profileinstaller-1.3.0\AndroidManifest.xml:40:13-42:29
+114                <action android:name="androidx.profileinstaller.action.INSTALL_PROFILE" />
+114-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\7d0839d17f83ba0f2cbd69796685398f\transformed\profileinstaller-1.3.0\AndroidManifest.xml:41:17-91
+114-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\7d0839d17f83ba0f2cbd69796685398f\transformed\profileinstaller-1.3.0\AndroidManifest.xml:41:25-88
+115            </intent-filter>
+116            <intent-filter>
+116-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\7d0839d17f83ba0f2cbd69796685398f\transformed\profileinstaller-1.3.0\AndroidManifest.xml:43:13-45:29
+117                <action android:name="androidx.profileinstaller.action.SKIP_FILE" />
+117-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\7d0839d17f83ba0f2cbd69796685398f\transformed\profileinstaller-1.3.0\AndroidManifest.xml:44:17-85
+117-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\7d0839d17f83ba0f2cbd69796685398f\transformed\profileinstaller-1.3.0\AndroidManifest.xml:44:25-82
+118            </intent-filter>
+119            <intent-filter>
+119-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\7d0839d17f83ba0f2cbd69796685398f\transformed\profileinstaller-1.3.0\AndroidManifest.xml:46:13-48:29
+120                <action android:name="androidx.profileinstaller.action.SAVE_PROFILE" />
+120-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\7d0839d17f83ba0f2cbd69796685398f\transformed\profileinstaller-1.3.0\AndroidManifest.xml:47:17-88
+120-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\7d0839d17f83ba0f2cbd69796685398f\transformed\profileinstaller-1.3.0\AndroidManifest.xml:47:25-85
+121            </intent-filter>
+122            <intent-filter>
+122-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\7d0839d17f83ba0f2cbd69796685398f\transformed\profileinstaller-1.3.0\AndroidManifest.xml:49:13-51:29
+123                <action android:name="androidx.profileinstaller.action.BENCHMARK_OPERATION" />
+123-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\7d0839d17f83ba0f2cbd69796685398f\transformed\profileinstaller-1.3.0\AndroidManifest.xml:50:17-95
+123-->[androidx.profileinstaller:profileinstaller:1.3.0] C:\Users\luyen\.gradle\caches\9.0-milestone-1\transforms\7d0839d17f83ba0f2cbd69796685398f\transformed\profileinstaller-1.3.0\AndroidManifest.xml:50:25-92
+124            </intent-filter>
+125        </receiver>
+126    </application>
+127
+128</manifest>
