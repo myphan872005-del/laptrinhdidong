@@ -1,25 +1,23 @@
-# UED Custom Maps
+# 📱 UED Custom Maps
 
-Ứng dụng bản đồ tùy chỉnh sử dụng OpenStreetMap và OSMDroid.
+## 🚀 Features đã triển khai
 
-## Tính năng
+### 1. 📍 GPS Tracking (Foreground Service)
+- Theo dõi vị trí người dùng liên tục
+- Chạy ngầm bằng Service
+- Sử dụng FusedLocationProviderClient
 
-✅ Tạo và quản lý bản đồ  
-✅ Long press để thêm marker  
-✅ Tìm kiếm bản đồ  
-✅ Đổi kiểu bản đồ (Normal/Satellite/Terrain)  
-✅ Xem vị trí hiện tại  
-✅ Lưu trữ dữ liệu local  
+### 2. 🧵 Vẽ đường đi (Polyline)
+- Lưu các điểm GPS theo thời gian
+- Hiển thị đường đi trên bản đồ
 
-## Cài đặt
+### 3. 💾 Lưu dữ liệu (SharedPreferences)
+- Lưu map và polyline
+- Khôi phục lại khi mở app
 
-1. Mở project trong Android Studio
-2. Sync Gradle
-3. Chạy app
+## 🏗️ Kiến trúc
 
-## Công nghệ
-
-- Kotlin + Jetpack Compose
-- OSMDroid (OpenStreetMap)
-- MVVM Architecture
-- SharedPreferences + Gson
+- `TrackingService`: xử lý GPS
+- `MapRepository`: lưu dữ liệu
+- `MapViewModel`: quản lý logic
+- `UI`: Compose + Navigation
