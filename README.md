@@ -1,25 +1,38 @@
-# UED Custom Maps
+PHASE 1: CORE TRACKING & SYNC (COMPLETED)
+1. Kiến trúc Singleton Repository (Bắt buộc)
+Thay đổi: Chuyển MapRepository sang Singleton để Service và UI dùng chung 1 instance duy nhất.
 
-Ứng dụng bản đồ tùy chỉnh sử dụng OpenStreetMap và OSMDroid.
+Cách dùng: Tuyệt đối không khởi tạo mới. Phải dùng:
+MapRepository.getInstance(context)
 
-## Tính năng
+2. Đồng bộ dữ liệu (StateFlow)
+Cơ chế: Dữ liệu từ Service ghi vào file sẽ tự "chảy" về UI qua StateFlow.
 
-✅ Tạo và quản lý bản đồ  
-✅ Long press để thêm marker  
-✅ Tìm kiếm bản đồ  
-✅ Đổi kiểu bản đồ (Normal/Satellite/Terrain)  
-✅ Xem vị trí hiện tại  
-✅ Lưu trữ dữ liệu local  
+Kết quả: Tọa độ và trạng thái nút bấm tự cập nhật thời gian thực mà không cần load lại trang.
 
-## Cài đặt
+UI Code: val maps by viewModel.maps.collectAsState()
 
-1. Mở project trong Android Studio
-2. Sync Gradle
-3. Chạy app
+3. Tối ưu Tracking & Pin
+Lọc nhiễu GPS (3 lớp): * Sai số > 25m (Bỏ).
 
-## Công nghệ
+Di chuyển < 3m (Bỏ).
 
-- Kotlin + Jetpack Compose
-- OSMDroid (OpenStreetMap)
-- MVVM Architecture
-- SharedPreferences + Gson
+Vận tốc nhảy vọt (Bỏ).
+
+Battery Adaptive: * Đang sạc: Quét mỗi 3s.
+
+Dùng pin: Quét mỗi 10s.
+
+Pin yếu (<15%): Quét mỗi 30s.
+
+4. Tính năng đã chạy
+[x] Start/Stop Tracking ngầm (Foreground Service).
+
+[x] Notification có nút "Dừng ghi" đồng bộ với App.
+
+[x] Lưu/Xóa danh sách nhiều hành trình.
+
+🛠 Lưu ý cho Team
+Check Log: Lọc từ khóa DEBUG_APP trong Logcat để xem luồng dữ liệu.
+
+Android 14: Đã cấu hình quyền Location chạy ngầm và Notification.
