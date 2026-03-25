@@ -32,3 +32,8 @@
 ## 📌 Ghi chú
 - Sử dụng OSMDroid để hiển thị bản đồ
 - Tối ưu để tránh nhiễu GPS khi đứng yên
+
+## 1 số vấn đề:
+- Chưa có hiển thị và kiểm soát ghi hành trình trên thanh thông báo
+- chưa test được polyline chặng đường dài
+- chưa có mục quản lý hành trình rõ ràng ( bấm xóa là xóa hết hành trình luôn :> )
