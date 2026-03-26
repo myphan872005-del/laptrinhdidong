@@ -1,0 +1,36 @@
+package com.ued.custommaps.di
+
+import android.content.Context
+import androidx.room.Room
+import com.ued.custommaps.data.AppDatabase
+import com.ued.custommaps.data.JourneyDao
+import dagger.Module
+import dagger.Provides
+import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
+import dagger.hilt.components.SingletonComponent
+import javax.inject.Singleton
+
+@Module
+@InstallIn(SingletonComponent::class)
+object DatabaseModule {
+
+    @Provides
+    @Singleton
+    fun provideDatabase(@ApplicationContext context: Context): AppDatabase {
+        // Hilt sẽ tự gọi đoạn code này để tạo Database, không cần getDatabase() nữa
+        return Room.databaseBuilder(
+            context,
+            AppDatabase::class.java,
+            "geo_db"
+        )
+            .fallbackToDestructiveMigration() // Tự dọn dẹp data cũ nếu đổi version để tránh Crash
+            .build()
+    }
+
+    @Provides
+    @Singleton
+    fun provideJourneyDao(db: AppDatabase): JourneyDao {
+        return db.journeyDao()
+    }
+}

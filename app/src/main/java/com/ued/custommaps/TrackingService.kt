@@ -2,89 +2,88 @@ package com.ued.custommaps
 
 import android.app.*
 import android.content.Intent
-import android.content.IntentFilter
-import android.os.BatteryManager
+import android.location.Location
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.google.android.gms.location.*
-import com.ued.custommaps.models.GeoPointData
-import com.ued.custommaps.repository.MapRepository
+import com.ued.custommaps.repository.JourneyRepository
+import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.*
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class TrackingService : Service() {
+    @Inject lateinit var repository: JourneyRepository
+    private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private var currentJourneyId = -1L
+    private var currentSegmentId = 1L // Đổi thành Long
+    private var lastSavedLocation: Location? = null
     private lateinit var fusedLocationClient: FusedLocationProviderClient
-    private lateinit var locationCallback: LocationCallback
-    private lateinit var repository: MapRepository
-    private var currentMapId: String? = null
 
-    override fun onCreate() {
-        super.onCreate()
-        // Sửa dòng này:
-        repository = MapRepository.getInstance(this)
-        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+    private val locationCallback = object : LocationCallback() {
+        override fun onLocationResult(result: LocationResult) {
+            val location = result.lastLocation ?: return
+            if (location.accuracy > 25f) return
+            val distance = lastSavedLocation?.distanceTo(location) ?: Float.MAX_VALUE
+            if (distance < 3f) return
 
-        locationCallback = object : LocationCallback() {
-            override fun onLocationResult(result: LocationResult) {
-                result.lastLocation?.let { location ->
-                    if (location.accuracy > 25f) return@let
-                    currentMapId?.let { id ->
-                        val map = repository.getMapById(id) ?: return@let
-                        if (map.polyline.isNotEmpty()) {
-                            val last = map.polyline.last()
-                            val dist = FloatArray(1)
-                            android.location.Location.distanceBetween(last.latitude, last.longitude, location.latitude, location.longitude, dist)
-                            if (dist[0] < 3f) return@let
-                        }
-                        repository.saveMap(map.copy(polyline = map.polyline + GeoPointData(location.latitude, location.longitude)))
-                    }
-                }
+            lastSavedLocation = location
+            serviceScope.launch {
+                repository.addTrackPoint(currentJourneyId, location.latitude, location.longitude, currentSegmentId)
             }
         }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val mapId = intent?.getStringExtra("MAP_ID")
+        val journeyId = intent?.getLongExtra("JOURNEY_ID", -1L) ?: -1L
+        // FIX TẠI ĐÂY: Dùng getLongExtra thay vì getIntExtra
+        currentSegmentId = intent?.getLongExtra("SEGMENT_ID", 1L) ?: 1L
 
-        if (intent?.action == "STOP_TRACKING") {
-            fusedLocationClient.removeLocationUpdates(locationCallback)
-            currentMapId?.let { id ->
-                val map = repository.getMapById(id)
-                if (map != null) repository.saveMap(map.copy(isTracking = false))
-            }
-            stopForeground(STOP_FOREGROUND_REMOVE)
+        if (intent?.action == "STOP") {
+            stopLocationUpdates()
             stopSelf()
             return START_NOT_STICKY
         }
 
-        currentMapId = mapId
-        val channelId = "tracking_channel"
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-            manager.createNotificationChannel(NotificationChannel(channelId, "GPS", NotificationManager.IMPORTANCE_LOW))
+        if (journeyId != -1L) {
+            currentJourneyId = journeyId
+            startForegroundService()
+            startLocationUpdates()
         }
-        startForeground(1, createNotification(channelId))
-        startLocationUpdates()
         return START_STICKY
     }
 
     private fun startLocationUpdates() {
-        val batteryStatus: Intent? = registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-        val isCharging = batteryStatus?.getIntExtra(BatteryManager.EXTRA_STATUS, -1).let { it == BatteryManager.BATTERY_STATUS_CHARGING || it == BatteryManager.BATTERY_STATUS_FULL }
-        val interval = if (isCharging) 3000L else 10000L
-
-        val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, interval)
-            .setMinUpdateDistanceMeters(2f).setWaitForAccurateLocation(true).build()
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+        val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 4000)
+            .setMinUpdateDistanceMeters(2f)
+            .build()
         try { fusedLocationClient.requestLocationUpdates(request, locationCallback, null) } catch (e: SecurityException) {}
     }
 
-    private fun createNotification(channelId: String): Notification {
-        val stopIntent = Intent(this, TrackingService::class.java).apply { action = "STOP_TRACKING" }
-        val stopPendingIntent = PendingIntent.getService(this, 0, stopIntent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-        return NotificationCompat.Builder(this, channelId)
-            .setContentTitle("UED Custom Maps").setContentText("Đang ghi hành trình...")
-            .setSmallIcon(android.R.drawable.ic_menu_mylocation).setOngoing(true)
-            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Dừng ghi", stopPendingIntent).build()
+    private fun stopLocationUpdates() {
+        if (::fusedLocationClient.isInitialized) {
+            fusedLocationClient.removeLocationUpdates(locationCallback)
+        }
     }
 
-    override fun onBind(intent: Intent?): IBinder? = null
+    private fun startForegroundService() {
+        val channelId = "tracking_channel"
+        val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(channelId, "Ghi hành trình", NotificationManager.IMPORTANCE_LOW)
+            manager.createNotificationChannel(channel)
+        }
+        val notification = NotificationCompat.Builder(this, channelId)
+            .setContentTitle("UED Custom Maps")
+            .setContentText("Đang ghi lại hành trình của bạn...")
+            .setSmallIcon(android.R.drawable.ic_menu_mylocation)
+            .setOngoing(true)
+            .build()
+        startForeground(1, notification)
+    }
+
+    override fun onBind(p0: Intent?): IBinder? = null
+    override fun onDestroy() { super.onDestroy(); serviceScope.cancel() }
 }

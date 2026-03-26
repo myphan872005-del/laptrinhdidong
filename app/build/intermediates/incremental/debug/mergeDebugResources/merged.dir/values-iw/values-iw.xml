@@ -82,7 +82,7 @@
     <string msgid="6277540029070332960" name="status_bar_notification_info_overflow">"999+"</string>
     <string msgid="7189888345201419934" name="suggestions_available">"הצעות מופיעות למטה"</string>
     <string msgid="2561197295334830845" name="switch_role">"מתג"</string>
-    <string msgid="1672349317127674378" name="tab">"‏מקש Tab"</string>
+    <string msgid="1672349317127674378" name="tab">"כרטיסייה"</string>
     <string msgid="5946805113151406391" name="template_percent">"<ns1:g id="PERCENTAGE">%1$d</ns1:g> אחוזים."</string>
     <string msgid="5096144640014509074" name="time_picker_am">"AM"</string>
     <string msgid="7241191970823415723" name="time_picker_hour">"שעות"</string>
@@ -96,6 +96,8 @@
     <string msgid="994099543833979061" name="time_picker_minute_text_field">"דקות"</string>
     <string msgid="7352665290700284516" name="time_picker_period_toggle_description">"‏צריך לבחור ב-AM או ב-PM"</string>
     <string msgid="2232702812657998674" name="time_picker_pm">"PM"</string>
+    <string msgid="3765533235322692011" name="tooltip_description">"הסבר קצר"</string>
+    <string msgid="3124740595719787496" name="tooltip_label">"הצגת ההסבר הקצר"</string>
     <string msgid="2732804537909054941" name="tooltip_long_press_label">"הצגת הסבר קצר"</string>
     <string msgid="8191239805703103845" name="tooltip_pane_description">"הסבר קצר"</string>
 </resources>

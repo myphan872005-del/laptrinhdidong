@@ -1,71 +1,49 @@
 package com.ued.custommaps.viewmodel
 
-import android.util.Log
+import android.net.Uri
 import androidx.compose.runtime.State
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
-import com.ued.custommaps.models.CustomMap
-import com.ued.custommaps.models.CustomMarker
-import com.ued.custommaps.models.GeoPointData
-import com.ued.custommaps.models.MapStyle
-import com.ued.custommaps.repository.MapRepository
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.stateIn
+import androidx.lifecycle.*
+import com.ued.custommaps.data.JourneyEntity
+import com.ued.custommaps.repository.JourneyRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class MapViewModel(private val repository: MapRepository) : ViewModel() {
+@HiltViewModel
+class MapViewModel @Inject constructor(private val repository: JourneyRepository) : ViewModel() {
 
-    // Lấy Flow trực tiếp từ Repository
-    val maps: StateFlow<List<CustomMap>> = repository.mapsFlow
+    val journeys = repository.allJourneys.asLiveData()
+    val searchQuery = mutableStateOf("")
 
-    private val _searchQuery = mutableStateOf("")
-    val searchQuery: State<String> = _searchQuery
+    private val _isTracking = mutableStateOf(false)
+    val isTracking: State<Boolean> = _isTracking
 
-    private val _mapStyle = mutableStateOf(MapStyle.NORMAL)
-    val mapStyle: State<MapStyle> = _mapStyle
+    private val _currentSegmentId = mutableLongStateOf(1L)
+    val currentSegmentId: State<Long> = _currentSegmentId
 
-    init {
-        Log.d("DEBUG_APP", "ViewModel: Khởi tạo thành công")
+    fun toggleTracking() {
+        _isTracking.value = !_isTracking.value
+        if (_isTracking.value) {
+            _currentSegmentId.longValue = System.currentTimeMillis() // Dùng timestamp làm segmentId duy nhất
+        }
     }
 
-    fun loadMaps() {
-        Log.d("DEBUG_APP", "ViewModel: Yêu cầu Repository làm mới dữ liệu")
-        repository.refresh()
+    fun createMap(title: String, lat: Double, lon: Double) {
+        viewModelScope.launch { repository.startNewJourney(title, lat, lon) }
     }
 
-    fun createMap(title: String) {
-        repository.saveMap(CustomMap(title = title.trim()))
+    // Cập nhật hàm thêm điểm dừng để nhận Uri ảnh
+    fun addStopPoint(journeyId: Long, lat: Double, lon: Double, note: String, imageUri: Uri?) {
+        viewModelScope.launch {
+            repository.addStopPoint(journeyId, lat, lon, note, imageUri?.toString())
+        }
     }
 
-    fun deleteMap(mapId: String) {
-        repository.deleteMap(mapId)
-    }
-
-    fun updateTrackingStatus(mapId: String, isTracking: Boolean) {
-        Log.d("DEBUG_APP", "ViewModel: Cập nhật tracking status: $isTracking")
-        val currentMap = repository.getMapById(mapId) ?: return
-        repository.saveMap(currentMap.copy(isTracking = isTracking))
-    }
-
-    fun addMarkerToMap(mapId: String, marker: CustomMarker) {
-        val currentMap = repository.getMapById(mapId) ?: return
-        repository.saveMap(currentMap.copy(markers = currentMap.markers + marker))
-    }
-
-    fun updatePolyline(mapId: String, points: List<GeoPointData>) {
-        val currentMap = repository.getMapById(mapId) ?: return
-        repository.saveMap(currentMap.copy(polyline = points))
-    }
-
-    fun updateSearchQuery(query: String) { _searchQuery.value = query }
-
-    fun getFilteredMaps(): List<CustomMap> {
-        val currentMaps = maps.value
-        return if (_searchQuery.value.isEmpty()) currentMaps
-        else currentMaps.filter { it.title.contains(_searchQuery.value, true) }
-    }
-
-    fun changeMapStyle(style: MapStyle) { _mapStyle.value = style }
+    fun deleteMap(journey: JourneyEntity) = viewModelScope.launch { repository.deleteJourney(journey) }
+    fun getTrackPoints(journeyId: Long) = repository.getTrackPoints(journeyId).asLiveData()
+    fun getStopPoints(journeyId: Long) = repository.getStopPoints(journeyId).asLiveData()
+    fun updateSearchQuery(q: String) { searchQuery.value = q }
+    fun getFilteredMaps() = journeys.value?.filter { it.title.contains(searchQuery.value, true) } ?: emptyList()
 }
