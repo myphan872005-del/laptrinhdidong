@@ -1,6 +1,6 @@
 package com.ued.custommaps.ui
 
-import android.Manifest // Quan trọng
+import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -22,6 +22,8 @@ import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.ued.custommaps.data.JourneyEntity
 import com.ued.custommaps.viewmodel.MapViewModel
+import java.text.SimpleDateFormat
+import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -30,49 +32,52 @@ fun MainScreen(navController: NavController, viewModel: MapViewModel) {
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
     var showDialog by remember { mutableStateOf(false) }
     var newTitle by remember { mutableStateOf("") }
-    val journeys by viewModel.journeys.observeAsState(initial = emptyList())
 
-    // --- BỘ CODE HỎI QUYỀN TRUY CẬP GPS ---
+    // Quan sát dữ liệu
+    val journeys by viewModel.journeys.observeAsState(initial = emptyList())
+    val searchQuery by viewModel.searchQuery
+
+    // Logic lọc danh sách (Tự động chạy khi journeys hoặc searchQuery đổi)
+    val filteredJourneys = remember(searchQuery, journeys) {
+        if (searchQuery.isBlank()) journeys
+        else journeys.filter { it.title.contains(searchQuery, ignoreCase = true) }
+    }
+
+    // Xin quyền (Giữ nguyên)
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissions ->
-        // Xử lý sau khi người dùng bấm cho phép hoặc từ chối (tùy chọn)
-    }
+    ) { _ -> }
 
     LaunchedEffect(Unit) {
-        permissionLauncher.launch(
-            arrayOf(
-                Manifest.permission.ACCESS_FINE_LOCATION,
-                Manifest.permission.ACCESS_COARSE_LOCATION
-            )
-        )
+        permissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
     }
-    // --------------------------------------
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("Hành trình của tôi") }) },
         floatingActionButton = {
             FloatingActionButton(onClick = { showDialog = true }) {
-                Icon(Icons.Default.Add, contentDescription = "Tạo mới")
+                Icon(Icons.Default.Add, contentDescription = null)
             }
         }
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
             OutlinedTextField(
-                value = viewModel.searchQuery.value,
+                value = searchQuery,
                 onValueChange = { viewModel.updateSearchQuery(it) },
                 modifier = Modifier.fillMaxWidth().padding(16.dp),
                 placeholder = { Text("Tìm kiếm hành trình...") },
                 leadingIcon = { Icon(Icons.Default.Search, null) }
             )
 
-            val filtered = viewModel.getFilteredMaps()
-            if (filtered.isEmpty()) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Chưa có hành trình nào") }
+            if (filteredJourneys.isEmpty()) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(if (searchQuery.isEmpty()) "Chưa có hành trình nào" else "Không tìm thấy kết quả")
+                }
             } else {
                 LazyColumn {
-                    items(filtered) { item ->
-                        MapItem(journey = item,
+                    items(filteredJourneys) { item ->
+                        MapItem(
+                            journey = item,
                             onClick = { navController.navigate("map/${item.id}") },
                             onDelete = { viewModel.deleteMap(item) }
                         )
@@ -85,42 +90,46 @@ fun MainScreen(navController: NavController, viewModel: MapViewModel) {
     if (showDialog) {
         AlertDialog(
             onDismissRequest = { showDialog = false },
-            title = { Text("Bắt đầu hành trình mới") },
-            text = {
-                OutlinedTextField(value = newTitle, onValueChange = { newTitle = it }, label = { Text("Tên hành trình") })
-            },
+            title = { Text("Tạo hành trình mới") },
+            text = { OutlinedTextField(value = newTitle, onValueChange = { newTitle = it }, label = { Text("Tên chuyến đi") }) },
             confirmButton = {
                 Button(onClick = {
                     if (newTitle.isNotBlank()) {
-                        try {
-                            fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
-                                .addOnSuccessListener { location ->
-                                    val lat = location?.latitude ?: 16.068
-                                    val lon = location?.longitude ?: 108.210
-                                    viewModel.createMap(newTitle, lat, lon)
-                                    showDialog = false
-                                    newTitle = ""
-                                }
-                        } catch (e: SecurityException) {
-                            viewModel.createMap(newTitle, 16.068, 108.210)
-                            showDialog = false
-                        }
+                        fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
+                            .addOnSuccessListener { loc ->
+                                viewModel.createMap(newTitle, loc?.latitude ?: 16.0, loc?.longitude ?: 108.0)
+                                showDialog = false; newTitle = ""
+                            }
                     }
-                }) { Text("Tạo") }
+                }) { Text("Bắt đầu") }
             }
         )
     }
 }
 
+// HÀM BỊ THIẾU LÚC NÃY ĐÂY HOAN ƠI!
 @Composable
 fun MapItem(journey: JourneyEntity, onClick: () -> Unit, onDelete: () -> Unit) {
-    Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp).clickable(onClick = onClick)) {
-        Row(Modifier.padding(16.dp), Arrangement.SpaceBetween, Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .clickable(onClick = onClick),
+        elevation = CardDefaults.cardElevation(4.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(journey.title, style = MaterialTheme.typography.titleMedium)
-                Text("Bắt đầu: ${journey.startTime}", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                val date = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date(journey.startTime))
+                Text("Bắt đầu: $date", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
             }
-            IconButton(onClick = onDelete) { Icon(Icons.Default.Delete, null, tint = Color.Red) }
+            IconButton(onClick = onDelete) {
+                Icon(Icons.Default.Delete, contentDescription = "Xóa", tint = Color.Red)
+            }
         }
     }
 }

@@ -33,7 +33,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavController
-import coil.compose.AsyncImage // Vitamin cho StopList
+import coil.compose.AsyncImage
 import com.ued.custommaps.TrackingService
 import com.ued.custommaps.data.StopPointEntity
 import com.ued.custommaps.viewmodel.MapViewModel
@@ -54,54 +54,64 @@ fun MapDetailScreen(mapId: String, navController: NavController, viewModel: MapV
     val lifecycleOwner = LocalLifecycleOwner.current
     val journeyId = mapId.toLongOrNull() ?: -1L
 
-    // Data từ Room
+    // Lấy dữ liệu từ ViewModel
     val allJourneys by viewModel.journeys.observeAsState(initial = emptyList())
     val currentJourney = allJourneys.find { it.id == journeyId }
     val trackPoints by viewModel.getTrackPoints(journeyId).observeAsState(initial = emptyList())
     val stopPoints by viewModel.getStopPoints(journeyId).observeAsState(initial = emptyList())
-
     val isTracking = viewModel.isTracking.value
 
-    // Tham chiếu điều khiển Map
+    // Tham chiếu Map
     var mapViewInstance by remember { mutableStateOf<MapView?>(null) }
     var locationOverlayRef by remember { mutableStateOf<MyLocationNewOverlay?>(null) }
 
-    // Trạng thái UI
+    // State UI
     var showStopDialog by remember { mutableStateOf(false) }
     var stopNote by remember { mutableStateOf("") }
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
     val sheetState = rememberModalBottomSheetState()
     var showStopList by remember { mutableStateOf(false) }
 
-    // --- LAUNCHER LẤY ẢNH TỪ GALLERY ---
     val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         selectedImageUri = uri
     }
 
-    // Quản lý vòng đời Map
+    // Quản lý Lifecycle để tránh tốn pin/rò rỉ bộ nhớ
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
-                Lifecycle.Event.ON_RESUME -> { mapViewInstance?.onResume(); locationOverlayRef?.enableMyLocation() }
-                Lifecycle.Event.ON_PAUSE -> { mapViewInstance?.onPause(); locationOverlayRef?.disableMyLocation() }
+                Lifecycle.Event.ON_RESUME -> {
+                    mapViewInstance?.onResume()
+                    locationOverlayRef?.enableMyLocation()
+                }
+                Lifecycle.Event.ON_PAUSE -> {
+                    mapViewInstance?.onPause()
+                    locationOverlayRef?.disableMyLocation()
+                }
                 else -> {}
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            mapViewInstance?.onDetach() // Quan trọng để giải phóng tài nguyên
+        }
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(currentJourney?.title ?: "Bản đồ") },
-                navigationIcon = { IconButton(onClick = { navController.popBackStack() }) { Icon(Icons.Default.ArrowBack, null) } }
+                title = { Text(currentJourney?.title ?: "Chi tiết bản đồ") },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    }
+                }
             )
         },
         bottomBar = {
             BottomAppBar {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                    // Nút Ghi/Dừng
                     Button(onClick = {
                         viewModel.toggleTracking()
                         val intent = Intent(context, TrackingService::class.java).apply {
@@ -113,14 +123,17 @@ fun MapDetailScreen(mapId: String, navController: NavController, viewModel: MapV
                         else context.stopService(intent)
                     }) {
                         Icon(if (isTracking) Icons.Default.Pause else Icons.Default.PlayArrow, null)
-                        Text(if (isTracking) " Tạm dừng" else " Ghi")
+                        Text(if (isTracking) " Tạm dừng" else " Bắt đầu ghi")
                     }
 
-                    // Nút Thêm điểm dừng
-                    Button(onClick = { showStopDialog = true }) { Icon(Icons.Default.AddLocation, null); Text(" Thêm điểm") }
+                    Button(onClick = { showStopDialog = true }) {
+                        Icon(Icons.Default.AddLocation, null)
+                        Text(" Thêm điểm")
+                    }
 
-                    // Nút Mở StopList
-                    FilledTonalIconButton(onClick = { showStopList = true }) { Icon(Icons.Default.List, null) }
+                    FilledTonalIconButton(onClick = { showStopList = true }) {
+                        Icon(Icons.Default.List, null)
+                    }
                 }
             }
         }
@@ -134,13 +147,10 @@ fun MapDetailScreen(mapId: String, navController: NavController, viewModel: MapV
                         setMultiTouchControls(true)
 
                         val overlay = MyLocationNewOverlay(GpsMyLocationProvider(ctx), this)
-
-                        // --- 1. CHỐT ICON MŨI TÊN TAM GIÁC (VL Tam Giác) ---
-                        // Lấy icon mũi tên mặc định, ép cho cả trạng thái đứng yên và di chuyển
                         val arrowIcon = getBitmapFromVector(ctx, android.R.drawable.ic_menu_mylocation)
                         if (arrowIcon != null) {
-                            overlay.setPersonIcon(arrowIcon) // Đứng yên cũng hiện mũi tên
-                            overlay.setDirectionArrow(arrowIcon, arrowIcon) // Di chuyển hiện mũi tên
+                            overlay.setPersonIcon(arrowIcon)
+                            overlay.setDirectionArrow(arrowIcon, arrowIcon)
                         }
 
                         overlay.enableMyLocation()
@@ -148,78 +158,87 @@ fun MapDetailScreen(mapId: String, navController: NavController, viewModel: MapV
                         locationOverlayRef = overlay
                         mapViewInstance = this
 
-                        currentJourney?.let { controller.setZoom(17.5); controller.setCenter(GeoPoint(it.startLat, it.startLon)) }
+                        currentJourney?.let {
+                            controller.setZoom(17.5)
+                            controller.setCenter(GeoPoint(it.startLat, it.startLon))
+                        }
                     }
                 },
                 update = { mapView ->
-                    // --- 2. VẼ POLYLINE THEO SEGMENT (Chống đường kẻ ma) ---
-                    if (trackPoints.isNotEmpty()) {
-                        mapView.overlays.removeAll { it is Polyline }
-                        trackPoints.groupBy { it.segmentId }.forEach { (_, points) ->
-                            if (points.size >= 2) {
-                                val polyline = Polyline().apply {
-                                    setPoints(points.map { GeoPoint(it.latitude, it.longitude) })
-                                    outlinePaint.color = android.graphics.Color.RED
-                                    outlinePaint.strokeWidth = 10f
-                                }
-                                mapView.overlays.add(polyline)
+                    // 1. Vẽ Polyline
+                    mapView.overlays.removeAll { it is Polyline }
+                    trackPoints.groupBy { it.segmentId }.forEach { (_, points) ->
+                        if (points.size >= 2) {
+                            val polyline = Polyline().apply {
+                                setPoints(points.map { GeoPoint(it.latitude, it.longitude) })
+                                outlinePaint.color = android.graphics.Color.RED
+                                outlinePaint.strokeWidth = 10f
                             }
+                            mapView.overlays.add(polyline)
                         }
                     }
 
-                    // --- 3. HIỂN THỊ ĐIỂM DỪNG (MARKER) TRÊN MAP ---
-                    // Xóa ghim cũ, vẽ ghim mới
+                    // 2. Vẽ Markers (Điểm dừng)
                     mapView.overlays.removeAll { it is Marker }
                     stopPoints.forEach { stop ->
                         val marker = Marker(mapView).apply {
                             position = GeoPoint(stop.latitude, stop.longitude)
                             title = stop.note
                             setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-
-                            // Tạo cửa sổ thông tin xịn (Phase 2)
-                            snippet = SimpleDateFormat("dd/MM HH:mm", Locale.getDefault()).format(Date(stop.timestamp))
-
-                            // Load ảnh thumbnail vào InfoWindow nếu có (Cần config InfoWindow phức tạp hơn, Phase 2)
+                            snippet = SimpleDateFormat("HH:mm - dd/MM", Locale.getDefault()).format(Date(stop.timestamp))
                         }
                         mapView.overlays.add(marker)
                     }
-
-                    mapView.invalidate() // Ép vẽ lại
+                    mapView.invalidate()
                 }
             )
 
-            // Nút định vị nhanh
-            Surface(modifier = Modifier.padding(16.dp).size(56.dp).align(Alignment.TopEnd), shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer, shadowElevation = 8.dp) {
+            // Nút My Location
+            Surface(
+                modifier = Modifier.padding(16.dp).size(56.dp).align(Alignment.TopEnd),
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primaryContainer,
+                shadowElevation = 8.dp
+            ) {
                 IconButton(onClick = {
-                    locationOverlayRef?.myLocation?.let { mapViewInstance?.controller?.animateTo(it); mapViewInstance?.controller?.setZoom(18.5) }
-                }) { Icon(Icons.Default.MyLocation, null, tint = MaterialTheme.colorScheme.primary) }
+                    locationOverlayRef?.myLocation?.let {
+                        mapViewInstance?.controller?.animateTo(it)
+                        mapViewInstance?.controller?.setZoom(18.5)
+                    }
+                }) {
+                    Icon(Icons.Default.MyLocation, null, tint = MaterialTheme.colorScheme.primary)
+                }
             }
         }
     }
 
-    // --- 4. DIALOG THÊM ĐIỂM DỪNG (GALLERY) ---
+    // Dialog Thêm Điểm Dừng
     if (showStopDialog) {
         AlertDialog(
             onDismissRequest = { showStopDialog = false },
-            title = { Text("Thêm điểm dừng mới") },
+            title = { Text("Lưu dấu chân") },
             text = {
                 Column {
-                    OutlinedTextField(value = stopNote, onValueChange = { stopNote = it }, label = { Text("Ghi chú") }, modifier = Modifier.fillMaxWidth())
-                    Spacer(Modifier.height(8.dp))
-
-                    // Nút mở Gallery
-                    OutlinedButton(onClick = { galleryLauncher.launch("image/*") }, modifier = Modifier.fillMaxWidth()) {
+                    OutlinedTextField(
+                        value = stopNote,
+                        onValueChange = { stopNote = it },
+                        label = { Text("Bạn đang thấy gì?") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    OutlinedButton(
+                        onClick = { galleryLauncher.launch("image/*") },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
                         Icon(Icons.Default.PhotoLibrary, null)
-                        Text(if (selectedImageUri == null) " Chọn ảnh từ Gallery" else " Đã chọn ảnh")
+                        Text(if (selectedImageUri == null) " Thêm ảnh kỷ niệm" else " Đã chọn 1 ảnh")
                     }
-
-                    // Hiển thị thumbnail ảnh đã chọn
                     selectedImageUri?.let { uri ->
                         Spacer(Modifier.height(8.dp))
                         AsyncImage(
                             model = uri,
                             contentDescription = null,
-                            modifier = Modifier.size(100.dp).clip(RoundedCornerShape(8.dp)).align(Alignment.CenterHorizontally),
+                            modifier = Modifier.size(120.dp).clip(RoundedCornerShape(8.dp)).align(Alignment.CenterHorizontally),
                             contentScale = ContentScale.Crop
                         )
                     }
@@ -229,87 +248,79 @@ fun MapDetailScreen(mapId: String, navController: NavController, viewModel: MapV
                 Button(onClick = {
                     val myLoc = locationOverlayRef?.myLocation
                     if (myLoc != null) {
-                        viewModel.addStopPoint(journeyId, myLoc.latitude, myLoc.longitude, stopNote, selectedImageUri)
-                        showStopDialog = false; stopNote = ""; selectedImageUri = null
+                        viewModel.addStopPoint(journeyId, myLoc.latitude, myLoc.longitude, stopNote, selectedImageUri?.toString())
+                        Toast.makeText(context, "Đã ghim điểm dừng!", Toast.LENGTH_SHORT).show()
+                        // Reset state
+                        showStopDialog = false
+                        stopNote = ""
+                        selectedImageUri = null
+                    } else {
+                        Toast.makeText(context, "Chờ GPS bắt tín hiệu đã Hoan ơi!", Toast.LENGTH_SHORT).show()
                     }
-                }) { Text("Lưu điểm") }
+                }) { Text("Ghim ngay") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showStopDialog = false }) { Text("Hủy") }
             }
         )
     }
 
-    // --- 5. STOPLIST (BOTTOM SHEET QUẢN LÝ ĐIỂM DỪNG) ---
+    // StopList Bottom Sheet
     if (showStopList) {
-        ModalBottomSheet(
-            onDismissRequest = { showStopList = false },
-            sheetState = sheetState
-        ) {
+        ModalBottomSheet(onDismissRequest = { showStopList = false }, sheetState = sheetState) {
             Column(Modifier.fillMaxWidth().padding(16.dp)) {
-                Text("Danh sách điểm dừng", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(16.dp))
-
+                Text("Nhật ký hành trình", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(12.dp))
                 if (stopPoints.isEmpty()) {
-                    Box(Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
-                        Text("Chưa có điểm dừng nào được tạo.", color = Color.Gray)
-                    }
+                    Text("Chưa có điểm dừng nào.", modifier = Modifier.padding(vertical = 32.dp).align(Alignment.CenterHorizontally), color = Color.Gray)
                 } else {
                     LazyColumn(Modifier.weight(1f)) {
                         items(stopPoints) { stop ->
-                            StopListItem(
-                                stop = stop,
-                                onClick = {
-                                    // Bấm vào là bay về điểm đó trên Map
-                                    mapViewInstance?.controller?.animateTo(GeoPoint(stop.latitude, stop.longitude))
-                                    mapViewInstance?.controller?.setZoom(18.5)
-                                    // Đóng sheet
-                                    showStopList = false
-                                }
-                            )
+                            StopListItem(stop = stop) {
+                                mapViewInstance?.controller?.animateTo(GeoPoint(stop.latitude, stop.longitude))
+                                mapViewInstance?.controller?.setZoom(19.0)
+                                showStopList = false
+                            }
                         }
                     }
                 }
-                Spacer(Modifier.height(32.dp)) // Padding dưới
+                Spacer(Modifier.height(24.dp))
             }
         }
     }
 }
 
-// Komponent hiển thị 1 item trong StopList
 @Composable
 fun StopListItem(stop: StopPointEntity, onClick: () -> Unit) {
-    Card(Modifier.fillMaxWidth().padding(vertical = 8.dp).clickable(onClick = onClick)) {
+    Card(Modifier.fillMaxWidth().padding(vertical = 6.dp).clickable(onClick = onClick)) {
         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            // Ảnh thumbnail
             if (stop.imagePath != null) {
                 AsyncImage(
                     model = stop.imagePath,
                     contentDescription = null,
-                    modifier = Modifier.size(60.dp).clip(RoundedCornerShape(8.dp)),
+                    modifier = Modifier.size(64.dp).clip(RoundedCornerShape(8.dp)),
                     contentScale = ContentScale.Crop
                 )
             } else {
-                Box(Modifier.size(60.dp).background(Color.LightGray, RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Default.LocationOn, null, tint = Color.Gray)
+                Box(Modifier.size(64.dp).background(Color.LightGray, RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Default.ImageNotSupported, null, tint = Color.Gray)
                 }
             }
-
             Spacer(Modifier.width(12.dp))
-
-            // Note và thời gian
             Column(Modifier.weight(1f)) {
-                Text(stop.note, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyLarge)
-                val time = SimpleDateFormat("HH:mm - dd/MM/yyyy", Locale.getDefault()).format(Date(stop.timestamp))
-                Text(time, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                Text(stop.note.ifBlank { "Không có ghi chú" }, fontWeight = FontWeight.Bold)
+                Text(SimpleDateFormat("HH:mm - dd/MM/yyyy", Locale.getDefault()).format(Date(stop.timestamp)), style = MaterialTheme.typography.bodySmall, color = Color.Gray)
             }
-
             Icon(Icons.Default.ChevronRight, null, tint = Color.Gray)
         }
     }
 }
 
-// Hàm hỗ trợ lấy Bitmap (giữ nguyên)
 fun getBitmapFromVector(context: android.content.Context, drawableId: Int): Bitmap? {
     val drawable = ContextCompat.getDrawable(context, drawableId) ?: return null
     val bitmap = Bitmap.createBitmap(drawable.intrinsicWidth, drawable.intrinsicHeight, Bitmap.Config.ARGB_8888)
-    Canvas(bitmap).also { drawable.setBounds(0, 0, it.width, it.height); drawable.draw(it) }
+    val canvas = Canvas(bitmap)
+    drawable.setBounds(0, 0, canvas.width, canvas.height)
+    drawable.draw(canvas)
     return bitmap
 }
