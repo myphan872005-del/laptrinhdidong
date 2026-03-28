@@ -14,23 +14,14 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
-
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase {
-        // Hilt sẽ tự gọi đoạn code này để tạo Database, không cần getDatabase() nữa
-        return Room.databaseBuilder(
-            context,
-            AppDatabase::class.java,
-            "geo_db"
-        )
-            .fallbackToDestructiveMigration() // Tự dọn dẹp data cũ nếu đổi version để tránh Crash
+        return Room.databaseBuilder(context, AppDatabase::class.java, "geo_db")
+            .fallbackToDestructiveMigration() // FIX: Xóa dữ liệu cũ để tạo bảng mới theo version 2
             .build()
     }
 
     @Provides
-    @Singleton
-    fun provideJourneyDao(db: AppDatabase): JourneyDao {
-        return db.journeyDao()
-    }
+    fun provideJourneyDao(db: AppDatabase): JourneyDao = db.journeyDao()
 }
