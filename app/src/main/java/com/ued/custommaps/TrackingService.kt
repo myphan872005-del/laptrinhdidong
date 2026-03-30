@@ -5,7 +5,8 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import androidx.core.app.NotificationCompat
-import com.ued.custommaps.repository.JourneyRepository
+// ĐÃ SỬA DÒNG NÀY: Trỏ đúng về thư mục data
+import com.ued.custommaps.data.JourneyRepository
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 

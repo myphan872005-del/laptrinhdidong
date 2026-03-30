@@ -46,10 +46,10 @@ import java.util.*
 
 @SuppressLint("MissingPermission")
 @Composable
-fun MapDetailScreen(mapId: String, navController: NavController, viewModel: MapViewModel) {
+fun MapDetailScreen(mapId: Long, navController: NavController, viewModel: MapViewModel) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    val journeyId = mapId.toLongOrNull() ?: -1L
+    val journeyId = mapId ?: -1L
 
     val trackPoints by viewModel.getTrackPoints(journeyId).observeAsState(initial = emptyList())
     val stopPoints by viewModel.getStopPoints(journeyId).observeAsState(initial = emptyList())

@@ -111,4 +111,12 @@ dependencies {
 
     implementation("androidx.media3:media3-exoplayer:1.2.0")
     implementation("androidx.media3:media3-ui:1.2.0")
+
+    implementation("androidx.datastore:datastore-preferences:1.0.0")
+// Retrofit & Gson (Gọi API Server)
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+
+    implementation("androidx.navigation:navigation-compose:2.7.7")
+    implementation("io.coil-kt:coil-compose:2.4.0")
 }

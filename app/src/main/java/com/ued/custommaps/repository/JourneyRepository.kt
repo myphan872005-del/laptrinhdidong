@@ -1,36 +1,38 @@
-package com.ued.custommaps.repository
+package com.ued.custommaps.data
 
-import com.ued.custommaps.data.*
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class JourneyRepository @Inject constructor(private val dao: JourneyDao) {
-    val allJourneys: Flow<List<JourneyEntity>> = dao.getAllJourneys()
+class JourneyRepository @Inject constructor(
+    private val journeyDao: JourneyDao
+) {
+    // --- JOURNEYS ---
+    fun getAllJourneys(userId: Int): Flow<List<JourneyEntity>> = journeyDao.getAllJourneys(userId)
+    suspend fun insertJourney(journey: JourneyEntity): Long = journeyDao.insertJourney(journey)
+    suspend fun softDeleteJourney(journeyId: Long) = journeyDao.softDeleteJourney(journeyId)
+    suspend fun getUnsyncedJourneys(): List<JourneyEntity> = journeyDao.getUnsyncedJourneys()
 
-    suspend fun startNewJourney(title: String, lat: Double, lon: Double) {
-        dao.insertJourney(JourneyEntity(title = title, startLat = lat, startLon = lon, startTime = System.currentTimeMillis()))
-    }
+    // --- TRACK POINTS ---
+    suspend fun insertTrackPoint(point: TrackPointEntity) = journeyDao.insertTrackPoint(point)
+    fun getTrackPoints(journeyId: Long): Flow<List<TrackPointEntity>> = journeyDao.getTrackPoints(journeyId)
 
-    suspend fun deleteJourney(journey: JourneyEntity) = dao.deleteJourney(journey)
-    fun getTrackPoints(journeyId: Long) = dao.getTrackPoints(journeyId)
-    fun getStopPoints(journeyId: Long) = dao.getStopPointsWithMedia(journeyId)
-    fun getStopPointById(stopId: Long) = dao.getStopPointById(stopId)
+    // --- STOP POINTS & MEDIA ---
+    suspend fun insertStopPoint(point: StopPointEntity): Long = journeyDao.insertStopPoint(point)
+    suspend fun insertMedia(media: StopPointMediaEntity) = journeyDao.insertMedia(media)
+    fun getStopPointsWithMedia(journeyId: Long): Flow<List<StopPointWithMedia>> = journeyDao.getStopPointsWithMedia(journeyId)
 
-    // Thêm các hàm này để ViewModel gọi, thay vì gọi trực tiếp dao
-    suspend fun updateJourney(journey: JourneyEntity) = dao.updateJourney(journey)
-    suspend fun updateStopPointNote(stopId: Long, note: String) = dao.updateStopPointNote(stopId, note)
-    suspend fun updateStopPointThumbnail(stopId: Long, uri: String?) = dao.updateStopPointThumbnail(stopId, uri)
-    suspend fun deleteStopPointsBatch(ids: List<Long>) = dao.deleteStopPointsBatch(ids)
-    suspend fun insertMedia(media: StopPointMediaEntity) = dao.insertMedia(media)
-    suspend fun deleteSingleMedia(media: StopPointMediaEntity) = dao.deleteSingleMedia(media)
+    // =========================================================================
+    // ĐÂY LÀ 5 HÀM MÌNH BỔ SUNG ĐỂ SỬA 50 LỖI ĐỎ TRONG VIEWMODEL NHÉ:
+    // =========================================================================
+    fun getStopPointById(stopId: Long): Flow<StopPointWithMedia> = journeyDao.getStopPointById(stopId)
 
-    suspend fun addStopPointWithMedia(journeyId: Long, lat: Double, lon: Double, note: String, mediaPaths: List<String>) {
-        val stopId = dao.insertStopPoint(StopPointEntity(journeyId = journeyId, latitude = lat, longitude = lon, note = note))
-        mediaPaths.forEach { path ->
-            val type = if (path.endsWith(".mp4") || path.endsWith(".mkv")) "VIDEO" else "IMAGE"
-            dao.insertMedia(StopPointMediaEntity(parentStopId = stopId, fileUri = path, mediaType = type))
-        }
-    }
+    suspend fun updateStopPointNote(stopId: Long, note: String) = journeyDao.updateStopPointNote(stopId, note)
+
+    suspend fun updateStopPointThumbnail(stopId: Long, uri: String?) = journeyDao.updateStopPointThumbnail(stopId, uri)
+
+    suspend fun softDeleteStopPointsBatch(ids: List<Long>) = journeyDao.softDeleteStopPointsBatch(ids)
+
+    suspend fun deleteSingleMedia(media: StopPointMediaEntity) = journeyDao.deleteSingleMedia(media)
 }

@@ -1,10 +1,13 @@
 @file:OptIn(ExperimentalMaterial3Api::class)
 package com.ued.custommaps.ui
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -12,10 +15,16 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.*
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import com.ued.custommaps.R
 import com.ued.custommaps.viewmodel.MapViewModel
 import java.text.SimpleDateFormat
 import java.util.*
@@ -23,8 +32,10 @@ import java.util.*
 @Composable
 fun MainScreen(navController: NavController, viewModel: MapViewModel) {
     val journeys by viewModel.journeys.observeAsState(initial = emptyList())
-    // KHẮC PHỤC LỖI: Lấy giá trị searchQuery đúng cách
     val searchQuery by viewModel.searchQuery
+
+    // Lấy thông tin user để hiển thị avatar
+    val userSession by viewModel.userSession.collectAsState()
 
     var showDialog by remember { mutableStateOf(false) }
     var newMapTitle by remember { mutableStateOf("") }
@@ -32,57 +43,178 @@ fun MainScreen(navController: NavController, viewModel: MapViewModel) {
 
     Scaffold(
         topBar = {
-            Column {
-                TopAppBar(title = { Text("Hành trình của tôi", fontWeight = FontWeight.Bold) })
+            Column(modifier = Modifier.background(MaterialTheme.colorScheme.surface)) {
+                TopAppBar(
+                    title = { Text("Hành trình của tôi", fontWeight = FontWeight.Bold) },
+                    actions = {
+                        // VÙNG AVATAR & MENU BÊN PHẢI
+                        var expanded by remember { mutableStateOf(false) }
+
+                        Box(modifier = Modifier.padding(end = 16.dp)) {
+                            AsyncImage(
+                                model = ImageRequest.Builder(LocalContext.current)
+                                    .data(userSession?.avatarUrl ?: R.drawable.ic_launcher_background)
+                                    .crossfade(true)
+                                    .build(),
+                                contentDescription = "User Avatar",
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .border(1.5.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                                    .clickable { expanded = true }, // Bấm để mở Menu
+                                contentScale = ContentScale.Crop
+                            )
+
+                            // MENU THẢ XUỐNG
+                            DropdownMenu(
+                                expanded = expanded,
+                                onDismissRequest = { expanded = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("Thông tin cá nhân") },
+                                    leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
+                                    onClick = {
+                                        expanded = false
+                                        navController.navigate("profile") // Chuyển sang màn Profile
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Quản lý bài đăng") },
+                                    leadingIcon = { Icon(Icons.Default.List, contentDescription = null) },
+                                    onClick = {
+                                        expanded = false
+                                        // TODO: Chuyển sang màn quản lý bài đăng
+                                    }
+                                )
+                                Divider() // Đường kẻ ngang phân cách
+                                DropdownMenuItem(
+                                    text = { Text("Đăng xuất", color = MaterialTheme.colorScheme.error) },
+                                    leadingIcon = {
+                                        Icon(
+                                            Icons.Default.ExitToApp,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.error
+                                        )
+                                    },
+                                    onClick = {
+                                        expanded = false
+                                        viewModel.logout()
+                                        // Đá văng về Login và xóa sạch lịch sử
+                                        navController.navigate("login") {
+                                            popUpTo(0)
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                    }
+                )
+
+                // Ô tìm kiếm
                 OutlinedTextField(
                     value = searchQuery,
-                    onValueChange = { viewModel.updateSearchQuery(it) }, // Fix lỗi Unresolved updateSearchQuery
-                    modifier = Modifier.fillMaxWidth().padding(16.dp),
-                    placeholder = { Text("Tìm kiếm...") },
+                    onValueChange = { viewModel.updateSearchQuery(it) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    placeholder = { Text("Tìm kiếm tên bản đồ...") },
                     leadingIcon = { Icon(Icons.Default.Search, null) },
                     shape = RoundedCornerShape(12.dp),
-                    singleLine = true
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        unfocusedBorderColor = Color.LightGray
+                    )
                 )
             }
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { showDialog = true }) { Icon(Icons.Default.Add, null) }
+            FloatingActionButton(
+                onClick = { showDialog = true },
+                containerColor = MaterialTheme.colorScheme.primaryContainer
+            ) { Icon(Icons.Default.Add, contentDescription = "Thêm mới") }
         }
     ) { padding ->
-        LazyColumn(modifier = Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(16.dp)) {
-            items(filteredJourneys) { journey ->
-                Card(Modifier.fillMaxWidth().padding(vertical = 8.dp).clickable {
-                    navController.navigate("map_detail/${journey.id}")
-                }) {
-                    Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text(journey.title, fontWeight = FontWeight.Bold)
-                            Text(SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date(journey.startTime)), color = Color.Gray)
-                        }
-                        IconButton(onClick = { viewModel.deleteMap(journey) }) {
-                            Icon(Icons.Default.Delete, null, tint = Color.Red)
-                        }
-                    }
+        if (filteredJourneys.isEmpty()) {
+            Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                Text("Chưa có hành trình nào. Hãy tạo mới!", color = Color.Gray)
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize().padding(padding),
+                contentPadding = PaddingValues(16.dp)
+            ) {
+                items(filteredJourneys) { journey ->
+                    JourneyCard(
+                        journey = journey,
+                        onClick = { navController.navigate("map_detail/${journey.id}") },
+                        onDelete = { viewModel.deleteMap(journey) }
+                    )
                 }
             }
         }
     }
 
+    // Dialog tạo mới
     if (showDialog) {
         AlertDialog(
             onDismissRequest = { showDialog = false },
-            title = { Text("Tạo mới") },
-            text = { OutlinedTextField(value = newMapTitle, onValueChange = { newMapTitle = it }, label = { Text("Tên") }) },
+            title = { Text("Tạo hành trình mới", fontWeight = FontWeight.Bold) },
+            text = {
+                OutlinedTextField(
+                    value = newMapTitle,
+                    onValueChange = { newMapTitle = it },
+                    label = { Text("Tên hành trình") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+            },
             confirmButton = {
                 Button(onClick = {
-                    // ĐÃ FIX: Chỉ truyền 1 tham số title vào đây thôi
-                    viewModel.createMap(newMapTitle)
-                    showDialog = false
-                    newMapTitle = ""
-                }) {
-                    Text("Tạo")
-                }
+                    if (newMapTitle.isNotBlank()) {
+                        viewModel.createMap(newMapTitle)
+                        showDialog = false
+                        newMapTitle = ""
+                    }
+                }) { Text("Tạo ngay") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDialog = false }) { Text("Hủy") }
             }
         )
+    }
+}
+
+@Composable
+fun JourneyCard(journey: com.ued.custommaps.data.JourneyEntity, onClick: () -> Unit, onDelete: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 6.dp)
+            .clickable { onClick() },
+        elevation = CardDefaults.cardElevation(2.dp),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                Icons.Default.LocationOn,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(32.dp).padding(end = 12.dp)
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(journey.title, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    SimpleDateFormat("HH:mm - dd/MM/yyyy", Locale.getDefault()).format(Date(journey.startTime)),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.Gray
+                )
+            }
+            IconButton(onClick = onDelete) {
+                Icon(Icons.Default.Delete, contentDescription = "Xóa", tint = Color(0xFFE57373))
+            }
+        }
     }
 }
