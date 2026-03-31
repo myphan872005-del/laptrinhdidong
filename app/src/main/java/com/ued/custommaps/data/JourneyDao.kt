@@ -7,7 +7,8 @@ import kotlinx.coroutines.flow.Flow
 interface JourneyDao {
 
     // --- JOURNEYS ---
-    // Chỉ lấy hành trình của User đang đăng nhập và chưa bị xóa
+
+    // Lấy hành trình của User đang đăng nhập và chưa bị xóa
     @Query("SELECT * FROM journeys WHERE userId = :currentUserId AND isDeleted = 0 ORDER BY startTime DESC")
     fun getAllJourneys(currentUserId: Int): Flow<List<JourneyEntity>>
 
@@ -17,13 +18,13 @@ interface JourneyDao {
     @Update
     suspend fun updateJourney(journey: JourneyEntity)
 
+    // Lấy các hành trình cần đồng bộ lên server (Dùng cho WorkManager)
+    @Query("SELECT * FROM journeys WHERE isSynced = 0")
+    suspend fun getUnsyncedJourneys(): List<JourneyEntity>
+
     // Xóa mềm: Không xóa hẳn mà chỉ đổi cờ isDeleted = 1 để còn đồng bộ lên Server
     @Query("UPDATE journeys SET isDeleted = 1, isSynced = 0 WHERE id = :journeyId")
     suspend fun softDeleteJourney(journeyId: Long)
-
-    // Lấy các hành trình cần đồng bộ lên server (chưa sync)
-    @Query("SELECT * FROM journeys WHERE isSynced = 0")
-    suspend fun getUnsyncedJourneys(): List<JourneyEntity>
 
     // Đánh dấu đã đồng bộ xong
     @Query("UPDATE journeys SET isSynced = 1 WHERE id = :journeyId")
@@ -63,4 +64,13 @@ interface JourneyDao {
     // Xóa mềm Điểm dừng
     @Query("UPDATE stop_points SET isDeleted = 1, isSynced = 0 WHERE id IN (:ids)")
     suspend fun softDeleteStopPointsBatch(ids: List<Long>)
+
+    // Trong JourneyDao.kt
+    @Query("UPDATE journeys SET isSynced = 0 WHERE id = :journeyId")
+    suspend fun markJourneyAsUnsynced(journeyId: Long)
+
+    // Hàm LẤY TẤT CẢ (kể cả đã xóa) để đồng bộ lên Server
+    @Transaction
+    @Query("SELECT * FROM stop_points WHERE journeyId = :journeyId")
+    suspend fun getStopPointsForSync(journeyId: Long): List<StopPointWithMedia>
 }

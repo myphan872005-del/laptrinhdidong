@@ -35,4 +35,11 @@ class JourneyRepository @Inject constructor(
     suspend fun softDeleteStopPointsBatch(ids: List<Long>) = journeyDao.softDeleteStopPointsBatch(ids)
 
     suspend fun deleteSingleMedia(media: StopPointMediaEntity) = journeyDao.deleteSingleMedia(media)
+
+    // Trong JourneyRepository.kt
+    suspend fun markJourneyAsUnsynced(journeyId: Long) {
+        journeyDao.markJourneyAsUnsynced(journeyId)
+    }
+
+    suspend fun getStopPointsForSync(journeyId: Long) = journeyDao.getStopPointsForSync(journeyId)
 }
