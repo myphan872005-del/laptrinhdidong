@@ -18,6 +18,7 @@ import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.*
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -116,7 +117,7 @@ fun MainScreen(navController: NavController, viewModel: MapViewModel) {
 
                     Spacer(modifier = Modifier.width(8.dp))
 
-                    // NÚT TEST ĐỒNG BỘ NẰM Ở ĐÂY CHO GỌN
+                    // NÚT TEST ĐỒNG BỘ
                     FilledIconButton(
                         onClick = {
                             val syncRequest = OneTimeWorkRequestBuilder<SyncWorker>().build()
@@ -128,6 +129,7 @@ fun MainScreen(navController: NavController, viewModel: MapViewModel) {
                         Icon(Icons.Default.Refresh, contentDescription = "Sync Now")
                     }
                 }
+
             }
         },
         floatingActionButton = {
@@ -137,23 +139,50 @@ fun MainScreen(navController: NavController, viewModel: MapViewModel) {
             ) { Icon(Icons.Default.Add, contentDescription = "Thêm mới") }
         }
     ) { padding ->
-        // ... (Phần hiển thị list Journey giữ nguyên như cũ của Hoan)
-        if (filteredJourneys.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                Text("Chưa có hành trình nào. Hãy tạo mới!", color = Color.Gray)
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding),
-                contentPadding = PaddingValues(16.dp)
-            ) {
-                items(filteredJourneys) { journey ->
-                    JourneyCard(
-                        journey = journey,
-                        onClick = { navController.navigate("map_detail/${journey.id}") },
-                        onDelete = { viewModel.deleteMap(journey) }
-                    )
+
+        // DÙNG BOX LÀM VỎ BỌC CHO TOÀN BỘ PHẦN THÂN ĐỂ CHO PHÉP CHỒNG LÊN NHAU
+        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+
+            // 1. Phần hiển thị List Journey
+            if (filteredJourneys.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("Chưa có hành trình nào. Hãy tạo mới!", color = Color.Gray)
                 }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(
+                        start = 16.dp,
+                        end = 16.dp,
+                        top = 16.dp,
+                        bottom = 80.dp // Thêm bottom padding để list không bị che bởi nút Khám phá
+                    )
+                ) {
+                    items(filteredJourneys) { journey ->
+                        JourneyCard(
+                            journey = journey,
+                            onClick = { navController.navigate("map_detail/${journey.id}") },
+                            onDelete = { viewModel.deleteMap(journey) }
+                        )
+                    }
+                }
+            }
+
+            // 2. NÚT KHÁM PHÁ NẰM ĐỘC LẬP Ở GÓC DƯỚI TRÁI
+            Button(
+                onClick = { navController.navigate("discovery_screen") },
+                shape = RectangleShape, // Ép nút thành hình vuông
+                modifier = Modifier
+                    .align(Alignment.BottomStart) // Bây giờ thì Alignment này hoàn toàn hợp lệ
+                    .padding(16.dp)
+                    .size(60.dp),
+                contentPadding = PaddingValues(0.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Explore,
+                    contentDescription = "Discovery",
+                    modifier = Modifier.size(32.dp) // Cho Icon to lên một chút cho đẹp
+                )
             }
         }
     }
@@ -208,7 +237,6 @@ fun JourneyCard(journey: com.ued.custommaps.data.JourneyEntity, onClick: () -> U
                 modifier = Modifier.size(32.dp).padding(end = 12.dp)
             )
             Column(modifier = Modifier.weight(1f)) {
-                // Đã thêm Icon Đám Mây để check xem journey này đã sync chưa
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(journey.title, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
                     Spacer(modifier = Modifier.width(8.dp))

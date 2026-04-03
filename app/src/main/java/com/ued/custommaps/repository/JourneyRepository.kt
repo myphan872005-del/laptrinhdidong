@@ -3,10 +3,13 @@ package com.ued.custommaps.data
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.ued.custommaps.data.DiscoveryDao
+import com.ued.custommaps.data.*
 
 @Singleton
 class JourneyRepository @Inject constructor(
-    private val journeyDao: JourneyDao
+    private val journeyDao: JourneyDao,
+    private val discoveryDao: DiscoveryDao
 ) {
     // --- JOURNEYS ---
     fun getAllJourneys(userId: Int): Flow<List<JourneyEntity>> = journeyDao.getAllJourneys(userId)
@@ -42,4 +45,5 @@ class JourneyRepository @Inject constructor(
     }
 
     suspend fun getStopPointsForSync(journeyId: Long) = journeyDao.getStopPointsForSync(journeyId)
+
 }

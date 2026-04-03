@@ -5,6 +5,7 @@ import com.ued.custommaps.data.JourneyEntity
 import okhttp3.MultipartBody
 import retrofit2.Response
 import retrofit2.http.*
+import com.ued.custommaps.models.DiscoveryPost
 
 // --- CÁC DATA CLASS REQUEST & RESPONSE ---
 
@@ -105,4 +106,25 @@ interface ApiService {
         @Header("Authorization") token: String,
         @Part avatar: MultipartBody.Part
     ): Response<UploadResponse>
+
+    @GET("api/discovery")
+    suspend fun getDiscoveryFeed(): List<DiscoveryPost>
+
+    @Multipart
+    @POST("api/uploads/multi-media")
+    suspend fun uploadMultipleMedia(
+        @Header("Authorization") token: String,
+        @Part files: List<MultipartBody.Part>
+    ): Response<UploadMediaResponse>
+
+    data class UploadMediaResponse(
+        val message: String,
+        val data: List<MediaItemResponse>,
+        val urls: List<String>
+    )
+
+    data class MediaItemResponse(
+        val originalName: String,
+        val serverPath: String // Đây chính là cái link http://.../uploads/media/...
+    )
 }

@@ -3,6 +3,7 @@ package com.ued.custommaps.di
 import android.content.Context
 import androidx.room.Room
 import com.ued.custommaps.data.AppDatabase
+import com.ued.custommaps.data.DiscoveryDao
 import com.ued.custommaps.data.JourneyDao
 import dagger.Module
 import dagger.Provides
@@ -24,4 +25,9 @@ object DatabaseModule {
 
     @Provides
     fun provideJourneyDao(db: AppDatabase): JourneyDao = db.journeyDao()
+
+    @Provides
+    fun provideDiscoveryDao(database: AppDatabase): DiscoveryDao {
+        return database.discoveryDao()
+    }
 }

@@ -35,11 +35,16 @@ fun ProfileScreen(navController: NavController, viewModel: MapViewModel) {
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        uri?.let {
+        uri?.let { selectedUri ->
             isUploading = true
-            viewModel.uploadAvatar(it, context) { success ->
+            // Chỉ định rõ kiểu Boolean cho success
+            viewModel.uploadAvatar(selectedUri, context) { success: Boolean ->
                 isUploading = false
-                if (success) Toast.makeText(context, "Đã đổi ảnh!", Toast.LENGTH_SHORT).show()
+                if (success) {
+                    Toast.makeText(context, "Cập nhật ảnh đại diện thành công!", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(context, "Lỗi khi tải ảnh lên!", Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }
