@@ -1,0 +1,29 @@
+Test Case 1: Luồng tạo và lưu trữ dữ liệu
+
+Các bước: Mở app -> Nhấn nút (+) -> Nhập tên "Hành trình 1" -> Nhấn Tạo. Quay lại màn hình chính -> Nhấn tiếp (+) -> Tạo "Hành trình 2".
+
+Kỳ vọng: Danh sách màn hình chính hiển thị đủ 2 hành trình vừa tạo. Thử nhấn icon Thùng rác để xóa "Hành trình 1", mục "Hành trình 2" phải còn nguyên. Thoát hẳn app mở lại dữ liệu vẫn không mất.
+
+Test Case 2: Kiểm tra Service & Notification ngầm
+
+Các bước: Chọn một hành trình -> Nhấn "Bắt đầu ghi". Vuốt thanh thông báo điện thoại xuống để kiểm tra.
+
+Kỳ vọng: Thấy Notification "UED Custom Maps - Đang ghi hành trình..." hiện ra ổn định. Nhấn nút "Dừng ghi" ngay trên Notification đó.
+
+Kỳ vọng 2: Notification biến mất ngay lập tức, đồng thời nút trong giao diện App cũng phải tự động nhảy về trạng thái "Bắt đầu ghi" (không được bị treo).
+
+Test Case 3: Test GPS thực tế & Logic vẽ đường (Quan trọng)
+
+Các bước: Nhấn "Bắt đầu ghi" -> Tắt màn hình điện thoại, bỏ vào túi -> Đi bộ thực tế khoảng 20-50 mét (không đứng yên vì có bộ lọc nhiễu 3m) -> Mở màn hình lên xem lại bản đồ.
+
+Kỳ vọng: Trên bản đồ xuất hiện đường kẻ Polyline màu đỏ nối từ vị trí cũ đến vị trí mới một cách chính xác.
+
+Các bước 2: Nhấn "Tạm dừng" -> Di chuyển sang một vị trí khác (cách đó tầm 10m) -> Nhấn "Ghi" lại.
+
+Kỳ vọng 2: App tạo ra một đoạn đường mới, không có đường kẻ "ma" nối chéo từ điểm vừa dừng đến điểm bắt đầu lại (Logic Segment).
+
+Test Case 4: Thêm điểm dừng (StopPoint) kèm ảnh
+
+Các bước: Tại màn hình Map, nhấn "Thêm điểm" -> Nhấn nút chọn ảnh từ Gallery -> Chọn 1 ảnh bất kỳ -> Nhập Note "Test Checkpoint" -> Nhấn Lưu.
+
+Kỳ vọng: Một Marker (ghim) xuất hiện ngay tại vị trí hiện tại trên bản đồ. Mở danh sách StopList (icon List ở Bottom Bar) phải thấy mục "Test Checkpoint" hiện đủ ảnh thumbnail và thời gian lưu.
