@@ -79,7 +79,7 @@ class MapViewModel @Inject constructor(
             intent.action = "START"
             intent.putExtra("JOURNEY_ID", journeyId)
             intent.putExtra("SEGMENT_ID", currentSegmentId.longValue)
-            context.startForegroundService(intent)
+            androidx.core.content.ContextCompat.startForegroundService(context, intent)
             isTracking.value = true
         } else {
             intent.action = "STOP"
@@ -364,6 +364,67 @@ class MapViewModel @Inject constructor(
             } catch (e: Exception) {
                 android.util.Log.e("AVATAR_UPLOAD", "Error: ${e.message}")
                 onResult(false)
+            }
+        }
+    }
+
+    // Trong MapViewModel.kt
+
+    fun publishJourneyToDiscovery(
+        journey: JourneyEntity,
+        newTitle: String,
+        selectedThumb: String?,
+        onResult: (Boolean, String) -> Unit
+    ) {
+        viewModelScope.launch {
+            try {
+                val token = "Bearer ${_userSession.value?.token}"
+
+                // 1. Lấy dữ liệu tươi nhất từ Room
+                val trackPoints = repository.getTrackPoints(journey.id).firstOrNull() ?: emptyList()
+                val stopPoints = repository.getStopPointsWithMedia(journey.id).firstOrNull() ?: emptyList()
+
+                // 2. Đóng gói Payload (Snapshot)
+                val payload = mapOf(
+                    "journey" to mapOf(
+                        "id" to journey.id,
+                        "title" to newTitle,
+                        "start_lat" to journey.startLat,
+                        "start_lon" to journey.startLon,
+                        "start_time" to journey.startTime
+                    ),
+                    "track_points" to trackPoints.map {
+                        mapOf("latitude" to it.latitude, "longitude" to it.longitude, "timestamp" to it.timestamp)
+                    },
+                    "stop_points" to stopPoints.map { sp ->
+                        mapOf(
+                            "local_id" to sp.stopPoint.id,
+                            "note" to sp.stopPoint.note,
+                            "latitude" to sp.stopPoint.latitude,
+                            "longitude" to sp.stopPoint.longitude,
+                            "media" to sp.mediaList.map { m ->
+                                mapOf("file_uri" to m.fileUri, "media_type" to m.mediaType)
+                            }
+                        )
+                    }
+                )
+
+                // 3. Gửi yêu cầu Publish
+                val request = PublishRequest(
+                    journeyId = journey.id,
+                    title = newTitle,
+                    thumbnailUri = selectedThumb,
+                    payload = payload
+                )
+
+                val response = apiService.publishJourney(token, request)
+                if (response.isSuccessful) {
+                    onResult(true, response.body()?.message ?: "Thành công")
+                } else {
+                    onResult(false, "Lỗi: ${response.code()}")
+                }
+            } catch (e: Exception) {
+                onResult(false, "Lỗi hệ thống: ${e.message}")
             }
         }
     }

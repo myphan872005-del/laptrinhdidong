@@ -77,6 +77,18 @@ data class SyncResponse(
     val serverId: Long? // Sửa thành Long vì MySQL ID là số nguyên
 )
 
+data class PublishRequest(
+    val journeyId: Long,
+    val title: String,
+    val thumbnailUri: String?,
+    val payload: Any
+)
+
+data class SimpleResponse(
+    val message: String,
+    val status: Int? = null
+)
+
 // --- INTERFACE RETROFIT ---
 
 interface ApiService {
@@ -127,4 +139,10 @@ interface ApiService {
         val originalName: String,
         val serverPath: String // Đây chính là cái link http://.../uploads/media/...
     )
+
+    @POST("api/journeys/publish")
+    suspend fun publishJourney(
+        @Header("Authorization") token: String,
+        @Body request: PublishRequest
+    ): Response<SimpleResponse>
 }
