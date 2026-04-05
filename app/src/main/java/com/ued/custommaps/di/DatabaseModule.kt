@@ -5,6 +5,7 @@ import androidx.room.Room
 import com.ued.custommaps.data.AppDatabase
 import com.ued.custommaps.data.DiscoveryDao
 import com.ued.custommaps.data.JourneyDao
+import com.ued.custommaps.data.TrackPointDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -25,6 +26,12 @@ object DatabaseModule {
 
     @Provides
     fun provideJourneyDao(db: AppDatabase): JourneyDao = db.journeyDao()
+
+    @Provides
+    @Singleton
+    fun provideTrackPointDao(database: AppDatabase): TrackPointDao {
+        return database.trackPointDao() // Trỏ vào đúng hàm lấy DAO trong class AppDatabase của sếp
+    }
 
     @Provides
     fun provideDiscoveryDao(database: AppDatabase): DiscoveryDao {

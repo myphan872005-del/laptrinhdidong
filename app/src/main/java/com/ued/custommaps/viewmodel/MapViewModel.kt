@@ -1,16 +1,20 @@
 package com.ued.custommaps.viewmodel
 
+import android.app.ActivityManager
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.drawable.BitmapDrawable
 import android.net.Uri
+import android.os.Build
 import android.util.Log
 import androidx.compose.runtime.*
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.*
-import coil.ImageLoader
+import coil.imageLoader
+import coil.decode.VideoFrameDecoder
 import coil.request.ImageRequest
-import coil.request.SuccessResult
+import coil.transform.CircleCropTransformation
 import com.ued.custommaps.TrackingService
 import com.ued.custommaps.data.*
 import com.ued.custommaps.network.*
@@ -23,7 +27,6 @@ import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
 import java.io.File
-import java.io.FileOutputStream
 import java.util.*
 import javax.inject.Inject
 
@@ -37,6 +40,9 @@ class MapViewModel @Inject constructor(
     // --- 1. QUẢN LÝ PHIÊN ĐĂNG NHẬP ---
     private val _userSession = MutableStateFlow<UserSession?>(null)
     val userSession: StateFlow<UserSession?> = _userSession
+    val focusLocation = mutableStateOf<Pair<Double, Double>?>(null)
+
+    val currentBaseUrl = mutableStateOf(NetworkConfig.BASE_URL)
 
     init {
         viewModelScope.launch {
@@ -48,11 +54,8 @@ class MapViewModel @Inject constructor(
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val journeys: LiveData<List<JourneyEntity>> = userSession.flatMapLatest { session ->
-        if (session != null) {
-            repository.getAllJourneys(session.id)
-        } else {
-            flowOf(emptyList())
-        }
+        if (session != null) repository.getAllJourneys(session.id)
+        else flowOf(emptyList())
     }.asLiveData()
 
     fun logout() {
@@ -67,37 +70,93 @@ class MapViewModel @Inject constructor(
     var isTracking = mutableStateOf(false)
     var currentSegmentId = mutableLongStateOf(System.currentTimeMillis())
 
-    private val zoomedJourneys = mutableStateMapOf<Long, Boolean>()
-    fun isZoomed(id: Long) = zoomedJourneys[id] ?: false
-    fun markAsZoomed(id: Long) { zoomedJourneys[id] = true }
-
-    // SỬA LỖI & ĐỒNG BỘ SERVICE: Chạy ngầm chuẩn chuyên nghiệp
+    // 🚀 Đã tối ưu Action để khớp với Service và không gây lỗi
     fun toggleTracking(context: Context, journeyId: Long) {
         val intent = Intent(context, TrackingService::class.java)
+
         if (!isTracking.value) {
             currentSegmentId.longValue = System.currentTimeMillis()
-            intent.action = "START"
+            intent.action = "START_TRACKING" // Khớp với lệnh bên TrackingService
             intent.putExtra("JOURNEY_ID", journeyId)
             intent.putExtra("SEGMENT_ID", currentSegmentId.longValue)
-            androidx.core.content.ContextCompat.startForegroundService(context, intent)
+
+            ContextCompat.startForegroundService(context, intent)
             isTracking.value = true
         } else {
             intent.action = "STOP"
-            context.stopService(intent)
+            context.startService(intent)
             isTracking.value = false
         }
     }
 
-    val focusLocation = mutableStateOf<Pair<Double, Double>?>(null)
-
-    // --- 3. LOGIC HÀNH TRÌNH ---
-    fun updateJourneyStartLocation(journey: JourneyEntity, lat: Double, lon: Double) {
-        viewModelScope.launch {
-            repository.insertJourney(journey.copy(startLat = lat, startLon = lon, isSynced = false))
+    // 🚀 Hàm hỗ trợ đồng bộ trạng thái (Gọi từ UI nếu cần)
+    fun syncTrackingState(context: Context) {
+        try {
+            val manager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+            @Suppress("DEPRECATION")
+            val runningServices = manager.getRunningServices(Int.MAX_VALUE)
+            if (runningServices != null) {
+                for (service in runningServices) {
+                    if (TrackingService::class.java.name == service.service.className) {
+                        isTracking.value = true
+                        return
+                    }
+                }
+            }
+            isTracking.value = false
+        } catch (e: Exception) {
+            isTracking.value = false
         }
     }
 
-    fun createMap(title: String) {
+    // --- 3. LOGIC HÀNH TRÌNH ---
+    fun updateStopPointNote(stopId: Long, note: String) {
+        viewModelScope.launch { repository.updateStopPointNote(stopId, note) }
+    }
+
+    fun updateStopPointThumbnail(stopId: Long, uri: String?) {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.updateStopPointThumbnail(stopId, uri)
+            _stopPointBitmaps.remove(stopId)
+            val sp = repository.getStopPointByIdDirect(stopId)
+            sp?.journeyId?.let { repository.markJourneyAsUnsynced(it) }
+            Log.d("MapViewModel", "🔄 Đã đổi thumbnail cho điểm $stopId, xóa cache marker.")
+        }
+    }
+
+    fun deleteMedia(media: StopPointMediaEntity) {
+        viewModelScope.launch { repository.deleteSingleMedia(media) }
+    }
+
+    fun addMoreMediaToStop(context: Context, journeyId: Long, stopId: Long, uris: List<Uri>) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                uris.forEach { uri ->
+                    saveFileToInternal(context, uri)?.let { path ->
+                        val type = if (context.contentResolver.getType(uri)?.contains("video") == true) "VIDEO" else "IMAGE"
+                        repository.insertMedia(StopPointMediaEntity(
+                            parentStopId = stopId,
+                            fileUri = path,
+                            mediaType = type
+                        ))
+                    }
+                }
+                repository.markJourneyAsUnsynced(journeyId)
+                Log.d("MapViewModel", "✅ Đã chuyển hành trình $journeyId về trạng thái CHƯA ĐỒNG BỘ")
+            } catch (e: Exception) {
+                Log.e("MapViewModel", "💥 Lỗi thêm media: ${e.message}")
+            }
+        }
+    }
+
+    fun deleteMap(journey: JourneyEntity) {
+        viewModelScope.launch {
+            repository.softDeleteJourney(journey.id)
+            _stopPointBitmaps.clear()
+        }
+    }
+
+    fun createMap(title: String, lat: Double = 0.0, lon: Double = 0.0) {
         val currentUserId = userSession.value?.id ?: return
         viewModelScope.launch {
             val newJourney = JourneyEntity(
@@ -105,215 +164,118 @@ class MapViewModel @Inject constructor(
                 userId = currentUserId,
                 title = title,
                 startTime = System.currentTimeMillis(),
+                startLat = lat,
+                startLon = lon,
                 isSynced = false
             )
             repository.insertJourney(newJourney)
         }
     }
 
-    fun deleteMap(journey: JourneyEntity) {
-        viewModelScope.launch { repository.softDeleteJourney(journey.id) }
-    }
-
     // --- 4. LOGIC ĐIỂM DỪNG & MEDIA ---
-    fun deleteSelectedStopPoints(ids: List<Long>, allData: List<StopPointWithMedia>) {
-        viewModelScope.launch {
-            // 1. Thực hiện xóa trong Repository (Room)
-            repository.softDeleteStopPointsBatch(ids)
-
-            // 2. Xóa cache bitmap để giải phóng RAM
-            ids.forEach { stopPointBitmaps.remove(it) }
-
-            // 3. Đánh dấu Map này cần đồng bộ lại với Server (isSynced = false)
-            val journeyId = allData.firstOrNull { it.stopPoint.id in ids }?.stopPoint?.journeyId
-            if (journeyId != null) {
-                repository.markJourneyAsUnsynced(journeyId)
-            }
-            Log.d("MAP_VM", "Đã xóa ${ids.size} điểm dừng cục bộ.")
-        }
+    fun getMediaForPublish(journeyId: Long): LiveData<List<StopPointMediaEntity>> {
+        return repository.getStopPointsWithMedia(journeyId).map { list ->
+            list.flatMap { it.mediaList }.filter { it.mediaType == "IMAGE" }
+        }.asLiveData()
     }
+
     fun addStopPointWithMedia(context: Context, journeyId: Long, lat: Double, lon: Double, note: String, uris: List<Uri>) {
         viewModelScope.launch {
             val stopPointId = System.currentTimeMillis()
             var firstSavedPath: String? = null
 
-            val newStopPoint = StopPointEntity(
-                id = stopPointId,
-                journeyId = journeyId,
-                latitude = lat,
-                longitude = lon,
-                note = note
-            )
+            val newStopPoint = StopPointEntity(id = stopPointId, journeyId = journeyId, latitude = lat, longitude = lon, note = note)
             repository.insertStopPoint(newStopPoint)
 
             uris.forEachIndexed { index, uri ->
                 saveFileToInternal(context, uri)?.let { path ->
                     if (index == 0) firstSavedPath = path
                     val type = if (context.contentResolver.getType(uri)?.contains("video") == true) "VIDEO" else "IMAGE"
-
-                    repository.insertMedia(
-                        StopPointMediaEntity(
-                            id = System.currentTimeMillis() + index,
-                            parentStopId = stopPointId,
-                            fileUri = path,
-                            mediaType = type
-                        )
-                    )
+                    repository.insertMedia(StopPointMediaEntity(id = System.currentTimeMillis() + index, parentStopId = stopPointId, fileUri = path, mediaType = type))
                 }
             }
-
-            if (firstSavedPath != null) {
-                repository.updateStopPointThumbnail(stopPointId, firstSavedPath)
-            }
+            if (firstSavedPath != null) repository.updateStopPointThumbnail(stopPointId, firstSavedPath)
             repository.markJourneyAsUnsynced(journeyId)
         }
     }
 
-    // --- THÊM VÀO MapViewModel.kt ---
-
-    fun addMoreMediaToStop(context: Context, stopId: Long, uris: List<Uri>) {
-        viewModelScope.launch {
-            uris.forEach { uri ->
-                saveFileToInternal(context, uri)?.let { path ->
-                    val type = if (context.contentResolver.getType(uri)?.contains("video") == true) "VIDEO" else "IMAGE"
-                    repository.insertMedia(
-                        StopPointMediaEntity(
-                            parentStopId = stopId,
-                            fileUri = path,
-                            mediaType = type
-                        )
-                    )
-                }
-            }
-            // Xóa cache bitmap để UI load lại ảnh mới
-            stopPointBitmaps.remove(stopId)
-
-            // Đánh dấu cần đồng bộ lại
-            repository.getStopPointById(stopId).firstOrNull()?.let {
-                repository.markJourneyAsUnsynced(it.stopPoint.journeyId)
-            }
-        }
-    }
-
-    fun updateStopPointNote(id: Long, note: String) = viewModelScope.launch {
-        repository.updateStopPointNote(id, note)
-        repository.getStopPointById(id).firstOrNull()?.let {
-            repository.markJourneyAsUnsynced(it.stopPoint.journeyId)
-        }
-    }
-
-    fun updateStopPointThumbnail(stopId: Long, uri: String?) = viewModelScope.launch {
-        repository.updateStopPointThumbnail(stopId, uri)
-        stopPointBitmaps.remove(stopId) // Ép UI load lại icon marker
-    }
-
-    fun deleteMedia(media: StopPointMediaEntity) = viewModelScope.launch {
-        try { File(media.fileUri).delete() } catch (e: Exception) {}
-        repository.deleteSingleMedia(media)
-        stopPointBitmaps.remove(media.parentStopId)
-    }
-
-    // --- 5. LOGIC LOAD THUMBNAIL TÙY CHỈNH ---
-    val stopPointBitmaps = mutableStateMapOf<Long, Bitmap?>()
+    // --- 5. LOGIC LOAD THUMBNAIL CHO MARKER ---
+    private val _stopPointBitmaps = mutableStateMapOf<Long, Bitmap?>()
+    val stopPointBitmaps: Map<Long, Bitmap?> = _stopPointBitmaps
 
     fun loadBitmapsForStopPoints(context: Context, stopPoints: List<StopPointWithMedia>) {
-        viewModelScope.launch {
-            val imageLoader = ImageLoader(context)
-            stopPoints.forEach { item ->
-                val stopId = item.stopPoint.id
-                if (!stopPointBitmaps.containsKey(stopId)) {
-                    val uriToLoad: Any? = when {
-                        item.stopPoint.thumbnailUri != null -> item.stopPoint.thumbnailUri
-                        item.mediaList.any { it.mediaType == "IMAGE" } -> item.mediaList.find { it.mediaType == "IMAGE" }?.fileUri
-                        item.mediaList.any { it.mediaType == "VIDEO" } -> android.R.drawable.ic_menu_slideshow
-                        else -> android.R.drawable.ic_menu_mylocation
-                    }
+        val imageLoader = context.imageLoader
+        val baseUrl = currentBaseUrl.value
 
-                    if (uriToLoad != null) {
-                        try {
-                            val request = ImageRequest.Builder(context).data(uriToLoad).size(150, 150).build()
-                            val result = (imageLoader.execute(request) as SuccessResult).drawable
-                            stopPointBitmaps[stopId] = (result as BitmapDrawable).bitmap
-                        } catch (e: Exception) { stopPointBitmaps[stopId] = null }
-                    } else { stopPointBitmaps[stopId] = null }
-                }
+        stopPoints.forEach { item ->
+            val sp = item.stopPoint
+            val url = NetworkConfig.getFullImageUrl(sp.thumbnailUri, baseUrl)
+
+            if (url.isNotBlank() && !_stopPointBitmaps.containsKey(sp.id)) {
+                val request = ImageRequest.Builder(context)
+                    .data(url)
+                    .addHeader("ngrok-skip-browser-warning", "true")
+                    .decoderFactory(VideoFrameDecoder.Factory())
+                    .size(250, 250)
+                    .transformations(CircleCropTransformation())
+                    .target { drawable ->
+                        val bitmap = (drawable as? BitmapDrawable)?.bitmap
+                        if (bitmap != null) {
+                            _stopPointBitmaps[sp.id] = bitmap
+                        }
+                    }
+                    .build()
+                imageLoader.enqueue(request)
             }
         }
     }
 
-    // --- 6. TÍNH NĂNG ĐỒNG BỘ (SYNC) ---
-    fun syncJourneyToServer(journey: JourneyEntity, onResult: (Boolean, String) -> Unit) {
+    // --- 6. TÍNH NĂNG ĐỒNG BỘ (SYNC) & ĐĂNG BÀI (PUBLISH) ---
+    fun publishJourneyToDiscovery(journey: JourneyEntity, newTitle: String, selectedThumb: String?, onResult: (Boolean, String) -> Unit) {
         viewModelScope.launch {
             try {
                 val token = "Bearer ${_userSession.value?.token}"
-                val trackPointsList = repository.getTrackPoints(journey.id).firstOrNull() ?: emptyList()
-                val stopPointsList = repository.getStopPointsWithMedia(journey.id).firstOrNull() ?: emptyList()
+                val trackPoints = repository.getTrackPoints(journey.id).firstOrNull() ?: emptyList()
+                val stopPoints = repository.getStopPointsWithMedia(journey.id).firstOrNull() ?: emptyList()
 
-                val baseUrl = "http://192.168.1.25:3000" // Đảm bảo IP này đúng
-
-                val syncStopPoints = stopPointsList.map { spWithMedia ->
-                    val sp = spWithMedia.stopPoint
-
-                    // Upload Media trước
-                    val mediaParts = spWithMedia.mediaList.map { media ->
-                        val file = File(media.fileUri)
-                        val requestFile = file.asRequestBody(
-                            if (media.mediaType == "VIDEO") "video/*".toMediaTypeOrNull()
-                            else "image/*".toMediaTypeOrNull()
+                val payload = mapOf(
+                    "journey" to mapOf("id" to journey.id, "title" to newTitle, "start_lat" to journey.startLat, "start_lon" to journey.startLon, "start_time" to journey.startTime),
+                    "track_points" to trackPoints.map { mapOf("latitude" to it.latitude, "longitude" to it.longitude, "timestamp" to it.timestamp) },
+                    "stop_points" to stopPoints.map { sp ->
+                        mapOf(
+                            "local_id" to sp.stopPoint.id, "note" to sp.stopPoint.note, "latitude" to sp.stopPoint.latitude, "longitude" to sp.stopPoint.longitude,
+                            "media" to sp.mediaList.map { m -> mapOf("file_uri" to m.fileUri, "media_type" to m.mediaType) }
                         )
-                        MultipartBody.Part.createFormData("files", file.name, requestFile)
                     }
-
-                    val serverUrls = mutableListOf<String>()
-                    if (mediaParts.isNotEmpty()) {
-                        try {
-                            val uploadRes = apiService.uploadMultipleMedia(token, mediaParts)
-                            if (uploadRes.isSuccessful) {
-                                serverUrls.addAll(uploadRes.body()?.urls ?: emptyList())
-                            }
-                        } catch (e: Exception) { Log.e("SYNC", "Upload media error: ${e.message}") }
-                    }
-
-                    SyncStopPoint(
-                        local_id = sp.id,
-                        latitude = sp.latitude,
-                        longitude = sp.longitude,
-                        note = sp.note,
-                        thumbnail_uri = if (serverUrls.isNotEmpty()) "$baseUrl${serverUrls[0]}" else null,
-                        timestamp = sp.id,
-                        is_deleted = if (sp.isDeleted) 1 else 0,
-                        mediaList = serverUrls.mapIndexed { index, url ->
-                            SyncMedia(
-                                local_id = System.currentTimeMillis() + index,
-                                file_uri = "$baseUrl$url",
-                                media_type = if (url.lowercase().contains(".mp4")) "VIDEO" else "IMAGE"
-                            )
-                        }
-                    )
-                }
-
-                val request = SyncJourneyRequest(
-                    id = journey.id,
-                    title = journey.title,
-                    startTime = journey.startTime,
-                    startLat = if (journey.startLat != 0.0) journey.startLat else (trackPointsList.firstOrNull()?.latitude ?: 16.0),
-                    startLon = if (journey.startLon != 0.0) journey.startLon else (trackPointsList.firstOrNull()?.longitude ?: 108.0),
-                    updatedAt = System.currentTimeMillis(),
-                    isDeleted = if (journey.isDeleted) 1 else 0,
-                    isPublic = if (journey.isPublic == 1) 1 else 1, // Mặc định 1 để hiện lên Discovery
-                    trackPoints = trackPointsList.map { SyncTrackPoint(it.segmentId, it.latitude, it.longitude, it.timestamp) },
-                    stopPoints = syncStopPoints
                 )
 
-                val response = apiService.syncJourney(token, request)
-                if (response.isSuccessful) {
-                    repository.insertJourney(journey.copy(isSynced = true))
-                    onResult(true, "Chia sẻ thành công!")
-                } else {
-                    onResult(false, "Lỗi Server: ${response.errorBody()?.string()}")
-                }
+                val request = PublishRequest(journeyId = journey.id, title = newTitle, thumbnailUri = selectedThumb, payload = payload)
+                val response = apiService.publishJourney(token, request)
+                if (response.isSuccessful) onResult(true, "Đã đăng bài!") else onResult(false, "Lỗi đăng bài!")
+            } catch (e: Exception) { onResult(false, "Lỗi hệ thống!") }
+        }
+    }
+
+    fun deleteStopPoint(stopId: Long, journeyId: Long) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                repository.deleteStopPointById(stopId)
+                repository.markJourneyAsUnsynced(journeyId)
+                Log.d("MapViewModel", "✅ Đã xóa Check-in $stopId và báo Unsync cho Hành trình $journeyId")
             } catch (e: Exception) {
-                onResult(false, "Lỗi hệ thống: ${e.message}")
+                Log.e("MapViewModel", "💥 Lỗi xóa Check-in: ${e.message}")
+            }
+        }
+    }
+
+    fun deleteAllStopPoints(journeyId: Long) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                repository.deleteAllStopPointsOfJourney(journeyId)
+                repository.markJourneyAsUnsynced(journeyId)
+                Log.d("MapViewModel", "✅ Đã dọn sạch Check-in của Hành trình $journeyId")
+            } catch (e: Exception) {
+                Log.e("MapViewModel", "💥 Lỗi xóa toàn bộ Check-in: ${e.message}")
             }
         }
     }
@@ -321,40 +283,44 @@ class MapViewModel @Inject constructor(
     // --- HELPERS ---
     private fun saveFileToInternal(context: Context, uri: Uri): String? {
         return try {
+            val isVideo = context.contentResolver.getType(uri)?.contains("video") == true
+            val extension = if (isVideo) ".mp4" else ".jpg"
             val inputStream = context.contentResolver.openInputStream(uri)
-            val file = File(context.filesDir, "media_${System.currentTimeMillis()}_${UUID.randomUUID()}.jpg")
-            inputStream?.use { input -> file.outputStream().use { output -> input.copyTo(output) } }
+            val file = File(context.filesDir, "media_${System.currentTimeMillis()}_${UUID.randomUUID()}$extension")
+
+            inputStream?.use { input ->
+                file.outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            }
             file.absolutePath
-        } catch (e: Exception) { null }
+        } catch (e: Exception) {
+            null
+        }
     }
 
+    fun getTrackPoints(id: Long) = repository.getTrackPoints(id).asLiveData()
+    fun getStopPoints(id: Long) = repository.getStopPointsWithMedia(id).asLiveData()
+    fun getStopPointById(id: Long) = repository.getStopPointById(id).asLiveData()
+
+    // --- 7. TÍNH NĂNG UPLOAD AVATAR ---
     fun uploadAvatar(uri: Uri, context: Context, onResult: (Boolean) -> Unit) {
         viewModelScope.launch {
             try {
-                // Chuyển Uri thành File để upload
                 val file = uriToFile(uri, context)
                 val requestFile = file.asRequestBody("image/*".toMediaTypeOrNull())
                 val body = MultipartBody.Part.createFormData("avatar", file.name, requestFile)
-
                 val token = "Bearer ${_userSession.value?.token}"
                 val response = apiService.uploadAvatar(token, body)
 
                 if (response.isSuccessful && response.body() != null) {
-                    val newAvatarUrl = response.body()?.avatarUrl
-                    val currentSession = _userSession.value
-
-                    if (currentSession != null && newAvatarUrl != null) {
-                        // Cập nhật StateFlow để UI đổi ảnh ngay lập tức
-                        val newSession = currentSession.copy(avatarUrl = newAvatarUrl)
-                        _userSession.value = newSession
-
-                        // Lưu vào Datastore/SharedPrefs để lần sau mở app vẫn còn
+                    val newUrl = response.body()?.avatarUrl
+                    _userSession.value?.let { session ->
+                        val updated = session.copy(avatarUrl = newUrl ?: "")
+                        _userSession.value = updated
                         sessionManager.saveSession(
-                            id = currentSession.id,
-                            token = currentSession.token,
-                            username = currentSession.username,
-                            displayName = currentSession.displayName,
-                            avatarUrl = newAvatarUrl
+                            updated.id, updated.token, updated.username,
+                            updated.displayName, updated.avatarUrl
                         )
                     }
                     onResult(true)
@@ -362,87 +328,19 @@ class MapViewModel @Inject constructor(
                     onResult(false)
                 }
             } catch (e: Exception) {
-                android.util.Log.e("AVATAR_UPLOAD", "Error: ${e.message}")
+                Log.e("UPLOAD_AVATAR", "Lỗi upload: ${e.message}")
                 onResult(false)
-            }
-        }
-    }
-
-    // Trong MapViewModel.kt
-
-    fun publishJourneyToDiscovery(
-        journey: JourneyEntity,
-        newTitle: String,
-        selectedThumb: String?,
-        onResult: (Boolean, String) -> Unit
-    ) {
-        viewModelScope.launch {
-            try {
-                val token = "Bearer ${_userSession.value?.token}"
-
-                // 1. Lấy dữ liệu tươi nhất từ Room
-                val trackPoints = repository.getTrackPoints(journey.id).firstOrNull() ?: emptyList()
-                val stopPoints = repository.getStopPointsWithMedia(journey.id).firstOrNull() ?: emptyList()
-
-                // 2. Đóng gói Payload (Snapshot)
-                val payload = mapOf(
-                    "journey" to mapOf(
-                        "id" to journey.id,
-                        "title" to newTitle,
-                        "start_lat" to journey.startLat,
-                        "start_lon" to journey.startLon,
-                        "start_time" to journey.startTime
-                    ),
-                    "track_points" to trackPoints.map {
-                        mapOf("latitude" to it.latitude, "longitude" to it.longitude, "timestamp" to it.timestamp)
-                    },
-                    "stop_points" to stopPoints.map { sp ->
-                        mapOf(
-                            "local_id" to sp.stopPoint.id,
-                            "note" to sp.stopPoint.note,
-                            "latitude" to sp.stopPoint.latitude,
-                            "longitude" to sp.stopPoint.longitude,
-                            "media" to sp.mediaList.map { m ->
-                                mapOf("file_uri" to m.fileUri, "media_type" to m.mediaType)
-                            }
-                        )
-                    }
-                )
-
-                // 3. Gửi yêu cầu Publish
-                val request = PublishRequest(
-                    journeyId = journey.id,
-                    title = newTitle,
-                    thumbnailUri = selectedThumb,
-                    payload = payload
-                )
-
-                val response = apiService.publishJourney(token, request)
-                if (response.isSuccessful) {
-                    onResult(true, response.body()?.message ?: "Thành công")
-                } else {
-                    onResult(false, "Lỗi: ${response.code()}")
-                }
-            } catch (e: Exception) {
-                onResult(false, "Lỗi hệ thống: ${e.message}")
             }
         }
     }
 
     private fun uriToFile(uri: Uri, context: Context): File {
         val file = File(context.cacheDir, "temp_avatar.jpg")
-        val inputStream = context.contentResolver.openInputStream(uri)
-        val outputStream = FileOutputStream(file)
-        inputStream?.copyTo(outputStream)
-        inputStream?.close()
-        outputStream.close()
+        context.contentResolver.openInputStream(uri)?.use { input ->
+            file.outputStream().use { output ->
+                input.copyTo(output)
+            }
+        }
         return file
-    }
-
-    fun getTrackPoints(id: Long) = repository.getTrackPoints(id).asLiveData()
-    fun getStopPoints(id: Long) = repository.getStopPointsWithMedia(id).asLiveData()
-    // Thêm vào MapViewModel.kt
-    fun getStopPointById(id: Long): LiveData<StopPointWithMedia?> {
-        return repository.getStopPointById(id).asLiveData()
     }
 }
