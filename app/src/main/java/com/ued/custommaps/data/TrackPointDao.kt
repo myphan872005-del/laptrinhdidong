@@ -5,16 +5,19 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface TrackPointDao {
-    @Insert(onConflict = OnConflictStrategy.REPLACE) // Thêm cái này để nếu trùng ID thì nó ghi đè, tránh crash
+
+    // 🚀 LƯU Ý: Đã đổi String thành Long để khớp 100% với BIGINT trên MySQL
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPoint(point: TrackPointEntity)
 
-    @Query("SELECT * FROM track_points WHERE journeyId = :jId ORDER BY timestamp ASC")
-    fun getPointsForJourney(jId: String): Flow<List<TrackPointEntity>>
+    @Query("SELECT * FROM track_points WHERE journeyId = :journeyId ORDER BY timestamp ASC")
+    fun getPointsForJourney(journeyId: Long): Flow<List<TrackPointEntity>>
 
-    @Query("DELETE FROM track_points WHERE journeyId = :jId")
-    suspend fun deletePointsForJourney(jId: String)
+    @Query("DELETE FROM track_points WHERE journeyId = :journeyId")
+    suspend fun deletePointsForJourney(journeyId: Long)
 
-    // Thêm hàm này để lấy dữ liệu nhanh khi cần Sync lên Server
-    @Query("SELECT * FROM track_points WHERE journeyId = :jId ORDER BY timestamp ASC")
-    suspend fun getPointsList(jId: String): List<TrackPointEntity>
+    // Hàm lấy danh sách thẳng (không qua Flow) để anh công nhân SyncWorker bốc lên Server
+    @Query("SELECT * FROM track_points WHERE journeyId = :journeyId ORDER BY timestamp ASC")
+    suspend fun getPointsList(journeyId: Long): List<TrackPointEntity>
 }

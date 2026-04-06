@@ -17,10 +17,21 @@ class SessionManager @Inject constructor(@ApplicationContext private val context
 
     companion object {
         val TOKEN = stringPreferencesKey("jwt_token")
-        val USER_ID = intPreferencesKey("user_id") // ID từ MySQL là INT
+        val USER_ID = intPreferencesKey("user_id") // ID từ MySQL bảng Users là INT (Chuẩn)
         val USERNAME = stringPreferencesKey("username")
         val DISPLAY_NAME = stringPreferencesKey("display_name")
         val AVATAR_URL = stringPreferencesKey("avatar_url")
+
+        val SERVER_URL = stringPreferencesKey("server_url")
+    }
+
+    val serverUrlFlow: Flow<String?> = context.dataStore.data.map { it[SERVER_URL] }
+    suspend fun updateServerUrl(newUrl: String) {
+        context.dataStore.edit { prefs ->
+            // Đảm bảo link luôn kết thúc bằng "/"
+            val formattedUrl = if (newUrl.endsWith("/")) newUrl else "$newUrl/"
+            prefs[SERVER_URL] = formattedUrl
+        }
     }
 
     // Luồng dữ liệu UserSession để UI (Compose) tự động cập nhật
@@ -41,6 +52,7 @@ class SessionManager @Inject constructor(@ApplicationContext private val context
         }
     }
 
+    // Lưu toàn bộ phiên làm việc (Dùng khi Login/Register)
     suspend fun saveSession(id: Int, token: String, username: String, displayName: String, avatarUrl: String) {
         context.dataStore.edit { prefs ->
             prefs[USER_ID] = id
@@ -48,6 +60,20 @@ class SessionManager @Inject constructor(@ApplicationContext private val context
             prefs[USERNAME] = username
             prefs[DISPLAY_NAME] = displayName
             prefs[AVATAR_URL] = avatarUrl
+        }
+    }
+
+    // 🚀 BỔ SUNG: Cập nhật riêng Avatar (Dùng sau khi gọi API upload avatar thành công)
+    suspend fun updateAvatarUrl(newAvatarUrl: String) {
+        context.dataStore.edit { prefs ->
+            prefs[AVATAR_URL] = newAvatarUrl
+        }
+    }
+
+    // 🚀 BỔ SUNG: Cập nhật riêng Tên hiển thị (Nếu sếp có tính năng đổi tên)
+    suspend fun updateDisplayName(newDisplayName: String) {
+        context.dataStore.edit { prefs ->
+            prefs[DISPLAY_NAME] = newDisplayName
         }
     }
 

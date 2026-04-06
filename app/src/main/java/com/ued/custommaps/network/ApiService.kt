@@ -2,13 +2,14 @@ package com.ued.custommaps.network
 
 import com.google.gson.annotations.SerializedName
 import com.ued.custommaps.data.JourneyEntity
+import com.ued.custommaps.models.DiscoveryPost
 import okhttp3.MultipartBody
 import retrofit2.Response
 import retrofit2.http.*
-import com.ued.custommaps.models.DiscoveryPost
 
-// --- CÁC DATA CLASS REQUEST & RESPONSE ---
-
+// ==========================================
+// 1. AUTHENTICATION MODELS
+// ==========================================
 data class AuthRequest(val username: String, val password: String)
 
 data class AuthResponse(
@@ -26,123 +27,139 @@ data class UserDto(
 
 data class UploadResponse(
     val message: String,
-    val avatarUrl: String
+    @SerializedName("avatarUrl") val avatarUrl: String
 )
 
-// --- CÁC DATA CLASS DÀNH CHO ĐỒNG BỘ (SYNC) ---
-
-// 1. Gói hàng tổng chứa tất cả
+// ==========================================
+// 2. SYNC MODELS (ÉP CHUẨN SNAKE_CASE CHO NODE.JS)
+// ==========================================
+// --- SYNC MODELS ---
 data class SyncJourneyRequest(
-    val id: Long,           // Đổi thành Long cho khớp local_id (BIGINT)
+    @SerializedName("local_id") val localId: Long,
     val title: String,
-    val startTime: Long,
-    val startLat: Double,
-    val startLon: Double,
-    val updatedAt: Long,
-    val isDeleted: Int,
-    val isPublic: Int,      // Thêm trường isPublic
-    val trackPoints: List<SyncTrackPoint>, // Danh sách tọa độ
-    val stopPoints: List<SyncStopPoint>    // Danh sách điểm dừng
+    @SerializedName("start_time") val startTime: Long,
+    @SerializedName("start_lat") val startLat: Double,
+    @SerializedName("start_lon") val startLon: Double,
+    @SerializedName("updated_at") val updatedAt: Long,
+    @SerializedName("is_deleted") val isDeleted: Int,
+    @SerializedName("isPublic") val isPublic: Int,
+    @SerializedName("trackPoints") val trackPoints: List<SyncTrackPoint>,
+    @SerializedName("stopPoints") val stopPoints: List<SyncStopPoint>
 )
 
-// 2. Gói hàng con: Tọa độ
 data class SyncTrackPoint(
-    val segment_id: Long,
+    @SerializedName("segment_id") val segmentId: Long,
     val latitude: Double,
     val longitude: Double,
     val timestamp: Long
 )
 
-// 3. Gói hàng con: Điểm dừng
 data class SyncStopPoint(
-    val local_id: Long,
+    @SerializedName("local_id") val localId: Long,
     val latitude: Double,
     val longitude: Double,
     val note: String?,
-    val thumbnail_uri: String?,
+    @SerializedName("thumbnail_uri") val thumbnailUri: String?,
     val timestamp: Long,
-    val is_deleted: Int,
-    @SerializedName("media") val mediaList: List<SyncMedia> // Danh sách ảnh/video
+    @SerializedName("is_deleted") val isDeleted: Int,
+    @SerializedName("media") val mediaList: List<SyncMedia>
 )
 
-// 4. Gói hàng cháu: Ảnh/Video của điểm dừng
 data class SyncMedia(
-    val local_id: Long,
-    val file_uri: String,
-    val media_type: String
+    @SerializedName("local_id") val localId: Long,
+    @SerializedName("file_uri") val fileUri: String,
+    @SerializedName("media_type") val mediaType: String
 )
 
 data class SyncResponse(
     val message: String,
-    val serverId: Long? // Sửa thành Long vì MySQL ID là số nguyên
+    val serverId: Long? = null
 )
+
+// ==========================================
+// 3. DISCOVERY & PUBLISH MODELS
+// =========================================
 
 data class PublishRequest(
-    val journeyId: Long,
+    @SerializedName("journeyId") val journeyId: Long,
     val title: String,
-    val thumbnailUri: String?,
-    val payload: Any
+    @SerializedName("thumbnailUri") val thumbnailUri: String?,
+    val payload: Any // Snapshot JSON cực lớn
 )
 
-data class SimpleResponse(
+data class SimpleResponse(val message: String)
+
+data class UploadMediaResponse(
     val message: String,
-    val status: Int? = null
+    val data: List<MediaItemResponse>? = null
 )
 
-// --- INTERFACE RETROFIT ---
+data class MediaItemResponse(
+    val originalName: String,
+    val serverPath: String,
+    val mediaType: String?
+)
 
+data class SingleMediaResponse(
+    val message: String,
+    val url: String
+)
+
+// ==========================================
+// 4. RETROFIT INTERFACE
+// ==========================================
 interface ApiService {
+
     @POST("api/auth/login")
     suspend fun login(@Body request: AuthRequest): Response<AuthResponse>
 
     @POST("api/auth/register")
     suspend fun register(@Body request: AuthRequest): Response<AuthResponse>
 
-    // API Đồng bộ 1 hành trình từ A-Z
-    // (Lưu ý: Mình thêm Header token vào đây để khớp với verifyToken bên Node.js nhé.
-    // Nếu Hoan đang dùng Interceptor để tự nhét token thì có thể xóa dòng @Header đi)
+    @Multipart
+    @POST("api/uploads/avatar")
+    suspend fun uploadAvatar(
+        @Header("Authorization") token: String,
+        @Part avatar: MultipartBody.Part
+    ): Response<UploadResponse>
+
+    // 🔄 ĐỒNG BỘ: Đi mua cơm xong bấm nút này nè sếp!
     @POST("api/journeys/sync")
     suspend fun syncJourney(
         @Header("Authorization") token: String,
         @Body request: SyncJourneyRequest
     ): Response<SyncResponse>
 
-    // Khám phá mạng xã hội
-    @GET("api/journeys/public")
-    suspend fun getPublicJourneys(): Response<List<JourneyEntity>>
-
-    // --- TÍNH NĂNG AVATAR ---
-    @Multipart
-    @POST("api/auth/upload-avatar")
-    suspend fun uploadAvatar(
-        @Header("Authorization") token: String,
-        @Part avatar: MultipartBody.Part
-    ): Response<UploadResponse>
-
-    @GET("api/discovery")
-    suspend fun getDiscoveryFeed(): List<DiscoveryPost>
-
-    @Multipart
-    @POST("api/uploads/multi-media")
-    suspend fun uploadMultipleMedia(
-        @Header("Authorization") token: String,
-        @Part files: List<MultipartBody.Part>
-    ): Response<UploadMediaResponse>
-
-    data class UploadMediaResponse(
-        val message: String,
-        val data: List<MediaItemResponse>,
-        val urls: List<String>
-    )
-
-    data class MediaItemResponse(
-        val originalName: String,
-        val serverPath: String // Đây chính là cái link http://.../uploads/media/...
-    )
-
+    // 🌍 CỘNG ĐỒNG: Đưa hành trình lên tab Khám phá
     @POST("api/journeys/publish")
     suspend fun publishJourney(
         @Header("Authorization") token: String,
         @Body request: PublishRequest
     ): Response<SimpleResponse>
+
+    @Multipart
+    @POST("api/uploads/multiple")
+    suspend fun uploadMultipleMedia(
+        @Header("Authorization") token: String,
+        @Part files: List<MultipartBody.Part>
+    ): Response<UploadMediaResponse>
+
+    @Headers("ngrok-skip-browser-warning: true")
+    @GET("api/discovery")
+    suspend fun getDiscoveryFeed(
+        @Header("Authorization") token: String
+    ): Response<List<DiscoveryPost>>
+
+    @DELETE("api/discovery/{id}")
+    suspend fun deleteDiscoveryPost(
+        @Header("Authorization") token: String,
+        @Path("id") postId: Long
+    ): Response<Unit>
+
+    @Multipart
+    @POST("api/uploads/single")
+    suspend fun uploadSingleMedia(
+        @Header("Authorization") token: String,
+        @Part file: MultipartBody.Part
+    ): Response<SingleMediaResponse>
 }
