@@ -1,5 +1,6 @@
 package com.ued.custommaps.ui
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.view.MotionEvent
 import androidx.compose.runtime.Composable
@@ -21,6 +22,7 @@ import org.osmdroid.views.overlay.Polyline
 import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
 
+@SuppressLint("RememberReturnType")
 @Composable
 fun OSMMapView(
     modifier: Modifier = Modifier,
