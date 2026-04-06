@@ -2,6 +2,7 @@
 package com.ued.custommaps.ui
 
 import android.annotation.SuppressLint
+import android.graphics.Bitmap
 import android.graphics.drawable.BitmapDrawable
 import android.view.ViewGroup
 import androidx.compose.foundation.background
@@ -29,7 +30,13 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import coil.decode.VideoFrameDecoder
+import coil.imageLoader // 🚀 Cần để load Bitmap cho Marker
+import coil.request.ImageRequest
+import coil.transform.CircleCropTransformation // 🚀 Bo tròn ảnh Marker
+import com.ued.custommaps.R
 import com.ued.custommaps.models.DiscoveryStopPoint
+import com.ued.custommaps.network.NetworkConfig
 import com.ued.custommaps.viewmodel.DiscoveryUiState
 import com.ued.custommaps.viewmodel.DiscoveryViewModel
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
@@ -37,31 +44,76 @@ import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.Polyline
-import java.text.SimpleDateFormat
 import java.util.*
 
 @SuppressLint("MissingPermission")
 @Composable
-fun DiscoveryDetailScreen(postId: Int, navController: NavController, viewModel: DiscoveryViewModel) {
+fun DiscoveryDetailScreen(postId: Long, navController: NavController, viewModel: DiscoveryViewModel) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val uiState by viewModel.uiState.collectAsState()
 
-    // Tìm bài đăng cụ thể từ danh sách đã load trong ViewModel
-    val post = (uiState as? DiscoveryUiState.Success)?.data?.find { it.postId == postId }
+    val sessionManager = remember { com.ued.custommaps.data.SessionManager(context) }
+    val currentBaseUrl by sessionManager.serverUrlFlow.collectAsState(initial = "")
+    val baseUrl: String = currentBaseUrl.takeIf { !it.isNullOrBlank() } ?: NetworkConfig.BASE_URL
+
+    val post = (uiState as? DiscoveryUiState.Success)?.data?.find { it.postId.toLong() == postId }
     val payload = post?.payload
     val journeyInfo = payload?.journey
     val trackPoints = payload?.trackPoints ?: emptyList()
     val stopPoints = payload?.stopPoints ?: emptyList()
 
     var showStopList by remember { mutableStateOf(false) }
+    var isMapInitialized by remember { mutableStateOf(false) }
+
+    // 🚀 LƯU TRỮ BITMAP CHO MARKER
+    val imageLoader = context.imageLoader
+    val stopPointBitmaps = remember { mutableStateMapOf<Int, Bitmap>() }
+
+    // 🚀 TỰ ĐỘNG TẢI THUMBNAIL CHO TỪNG ĐIỂM DỪNG
+    LaunchedEffect(stopPoints, baseUrl) {
+        stopPoints.forEach { sp ->
+            val thumbUrl = sp.thumbnailUri ?: sp.media?.firstOrNull()?.fileUri
+            val fullUrl = NetworkConfig.getFullImageUrl(thumbUrl, baseUrl)
+
+            if (fullUrl.isNotBlank() && !stopPointBitmaps.containsKey(sp.hashCode())) {
+                val request = ImageRequest.Builder(context)
+                    .data(fullUrl)
+                    .addHeader("ngrok-skip-browser-warning", "true")
+                    .decoderFactory(VideoFrameDecoder.Factory())
+                    .size(150, 150) // Kích thước Marker
+                    .transformations(CircleCropTransformation()) // Bo tròn
+                    .target { drawable ->
+                        (drawable as? BitmapDrawable)?.bitmap?.let {
+                            stopPointBitmaps[sp.hashCode()] = it
+                        }
+                    }
+                    .build()
+                imageLoader.enqueue(request)
+            }
+        }
+    }
 
     val mapView = remember {
         MapView(context).apply {
             setTileSource(TileSourceFactory.MAPNIK)
             setMultiTouchControls(true)
+            isVerticalMapRepetitionEnabled = false
+            isHorizontalMapRepetitionEnabled = false
+            setScrollableAreaLimitLatitude(MapView.getTileSystem().maxLatitude, MapView.getTileSystem().minLatitude, 0)
             minZoomLevel = 4.0
             layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+        }
+    }
+
+    val focusLoc = viewModel.focusLocation.value
+    LaunchedEffect(focusLoc) {
+        focusLoc?.let { (lat, lon) ->
+            // Bay mượt mà đến tọa độ và zoom to lên
+            mapView.controller.animateTo(GeoPoint(lat, lon), 18.0, 1000L)
+
+            // Xóa tín hiệu để lần sau không bị bay nhầm
+            viewModel.clearFocusLocation()
         }
     }
 
@@ -77,11 +129,9 @@ fun DiscoveryDetailScreen(postId: Int, navController: NavController, viewModel: 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(journeyInfo?.title ?: "Chi tiết hành trình") },
+                title = { Text(journeyInfo?.title ?: "Hành trình cộng đồng", fontWeight = FontWeight.Bold) },
                 navigationIcon = { IconButton(onClick = { navController.popBackStack() }) { Icon(Icons.Default.ArrowBack, null) } },
-                actions = {
-                    IconButton(onClick = { showStopList = true }) { Icon(Icons.Default.FormatListBulleted, null) }
-                }
+                actions = { IconButton(onClick = { showStopList = true }) { Icon(Icons.Default.FormatListBulleted, null, tint = MaterialTheme.colorScheme.primary) } }
             )
         }
     ) { padding ->
@@ -92,30 +142,31 @@ fun DiscoveryDetailScreen(postId: Int, navController: NavController, viewModel: 
                 update = { m ->
                     m.overlays.clear()
 
-                    // 1. Vẽ đường đi (Polyline) - Màu xanh dương cho khác biệt với bản đồ cá nhân
                     if (trackPoints.isNotEmpty()) {
-                        val polyline = Polyline().apply {
+                        val polyline = Polyline(m).apply {
                             setPoints(trackPoints.map { GeoPoint(it.latitude, it.longitude) })
-                            outlinePaint.color = android.graphics.Color.BLUE
-                            outlinePaint.strokeWidth = 10f
+                            outlinePaint.color = android.graphics.Color.parseColor("#FF4081")
+                            outlinePaint.strokeWidth = 12f
                         }
                         m.overlays.add(polyline)
                     }
 
-                    // 2. Vẽ các điểm dừng (Markers)
                     stopPoints.forEach { item ->
                         val marker = Marker(m).apply {
                             position = GeoPoint(item.latitude, item.longitude)
-                            title = item.note ?: "Điểm dừng"
+                            title = item.note ?: "Điểm check-in"
 
-                            // Vì là ảnh từ Server, tạm thời dùng Icon mặc định của hệ thống
-                            val iconId = if (item.media?.any { it.mediaType == "IMAGE" } == true)
-                                android.R.drawable.ic_menu_camera else android.R.drawable.ic_menu_mylocation
-                            icon = ContextCompat.getDrawable(context, iconId)
-                            setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                            // 🚀 DÙNG ẢNH ĐÃ TẢI LÀM MARKER
+                            val cachedBitmap = stopPointBitmaps[item.hashCode()]
+                            if (cachedBitmap != null) {
+                                icon = BitmapDrawable(context.resources, cachedBitmap)
+                                setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                            } else {
+                                icon = ContextCompat.getDrawable(context, R.drawable.ic_launcher_foreground)
+                                setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                            }
 
                             setOnMarkerClickListener { _, _ ->
-                                // Có thể hiển thị một Dialog nhỏ hoặc BottomSheet xem ảnh tại đây
                                 showStopList = true
                                 true
                             }
@@ -123,10 +174,10 @@ fun DiscoveryDetailScreen(postId: Int, navController: NavController, viewModel: 
                         m.overlays.add(marker)
                     }
 
-                    // 3. Tự động căn giữa vào điểm bắt đầu của hành trình
-                    if (journeyInfo != null) {
-                        m.controller.setZoom(15.0)
+                    if (!isMapInitialized && journeyInfo != null) {
+                        m.controller.setZoom(16.0)
                         m.controller.setCenter(GeoPoint(journeyInfo.startLat, journeyInfo.startLon))
+                        isMapInitialized = true
                     }
                     m.invalidate()
                 }
@@ -134,45 +185,78 @@ fun DiscoveryDetailScreen(postId: Int, navController: NavController, viewModel: 
         }
     }
 
-    // Danh sách điểm dừng (Chỉ xem)
     if (showStopList) {
         ModalBottomSheet(onDismissRequest = { showStopList = false }) {
             Column(Modifier.fillMaxWidth().padding(16.dp).navigationBarsPadding()) {
-                Text("Các điểm dừng chân", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
-                Spacer(Modifier.height(12.dp))
-                LazyColumn(Modifier.fillMaxWidth()) {
-                    items(stopPoints) { item ->
-                        DiscoveryStopListItem(item)
+                Text("Các điểm dừng chân", fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.titleLarge)
+                Spacer(Modifier.height(16.dp))
+
+                if (stopPoints.isEmpty()) {
+                    Text("Hành trình này không có điểm dừng nào sếp ạ.", color = Color.Gray)
+                } else {
+                    LazyColumn(Modifier.fillMaxWidth()) {
+                        items(stopPoints) { item ->
+                            DiscoveryStopListItem(
+                                item = item,
+                                baseUrl = baseUrl,
+                                onClick = {
+                                    viewModel.setSelectedStopPoint(item)
+                                    navController.navigate("discovery_stop_detail")
+                                }
+                            )
+                        }
                     }
                 }
+                Spacer(modifier = Modifier.height(20.dp))
             }
         }
     }
 }
-
 @Composable
-fun DiscoveryStopListItem(item: DiscoveryStopPoint) {
+fun DiscoveryStopListItem(item: DiscoveryStopPoint, baseUrl: String, onClick: () -> Unit) {
     Card(
-        Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 6.dp)
+            .clickable { onClick() },
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
     ) {
         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(60.dp).clip(RoundedCornerShape(8.dp)).background(Color.LightGray)) {
-                // Load ảnh từ URL Server (Nghĩa là file_uri lúc này là đường dẫn http)
-                if (item.media?.isNotEmpty() == true) {
-                    AsyncImage(
-                        model = item.media.first().fileUri,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop
-                    )
-                }
+            // Thumbnail nhỏ bên trái
+            Box(Modifier.size(70.dp).clip(RoundedCornerShape(10.dp)).background(Color.LightGray)) {
+                val thumbUrl = item.thumbnailUri ?: (item.media?.firstOrNull()?.fileUri)
+
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(NetworkConfig.getFullImageUrl(thumbUrl, baseUrl)) // 🚀 FIX XỌC XANH
+                        .addHeader("ngrok-skip-browser-warning", "true")
+                        .decoderFactory(VideoFrameDecoder.Factory())
+                        .crossfade(true)
+                        .error(R.drawable.ic_launcher_background)
+                        .build(),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
             }
-            Spacer(Modifier.width(12.dp))
+
+            Spacer(Modifier.width(16.dp))
+
             Column(Modifier.weight(1f)) {
-                Text(item.note?.ifBlank { "Điểm dừng" } ?: "Điểm dừng", fontWeight = FontWeight.Bold)
+                Text(
+                    text = if (item.note.isNullOrBlank()) "Điểm dừng chân" else item.note,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1
+                )
+                Text(
+                    text = "${item.media?.size ?: 0} hình ảnh/video",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.Gray
+                )
             }
-            Badge { Text("${item.media?.size ?: 0}") }
+
+            Icon(Icons.Default.ChevronRight, null, tint = Color.Gray)
         }
     }
 }

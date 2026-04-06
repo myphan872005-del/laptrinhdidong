@@ -4,7 +4,7 @@ import com.google.gson.annotations.SerializedName
 import java.util.UUID
 
 // ==========================================
-// 🗺️ MODELS CŨ (DÀNH CHO BẢN ĐỒ & TRACKING)
+// 🗺️ 1. MODELS CŨ (GIỮ NGUYÊN ĐỂ KHÔNG HỎNG TRACKING)
 // ==========================================
 data class GeoPointData(
     val latitude: Double,
@@ -34,39 +34,43 @@ enum class MapStyle {
 }
 
 // ==========================================
-// 🌍 MODELS MỚI (DÀNH CHO TÍNH NĂNG KHÁM PHÁ - API)
+// 🌍 2. MODELS MỚI (FIX LỖI DISCOVERY & SNAPSHOT)
 // ==========================================
 
-// 1. Lớp ngoài cùng hứng trực tiếp từ API (/api/discovery)
+// Lớp ngoài cùng hứng từ API /api/discovery
 data class DiscoveryPost(
     @SerializedName("post_id") val postId: Int,
-    @SerializedName("original_journey_id") val originalJourneyId: String,
+    @SerializedName("original_journey_id") val originalJourneyId: Long, // Đổi sang Long để khớp local_id
     @SerializedName("display_name") val authorName: String?,
     @SerializedName("avatar_url") val authorAvatar: String?,
+
+    // 🚀 FIX LỖI ĐỎ: Thêm ảnh đại diện hành trình
+    @SerializedName("thumbnail_uri") val thumbnailUri: String?,
+
     @SerializedName("likes_count") val likesCount: Int,
     @SerializedName("created_at") val createdAt: String,
     @SerializedName("payload") val payload: DiscoveryPayload?
 )
 
-// 2. Các Model phụ trợ để parse object "payload"
+// Object chứa Snapshot toàn bộ hành trình
 data class DiscoveryPayload(
-    @SerializedName("journey") val journey: DiscoveryJourneyInfo,
+    @SerializedName("journey") val journey: DiscoveryJourneyInfo?,
     @SerializedName("track_points") val trackPoints: List<DiscoveryTrackPoint>? = emptyList(),
     @SerializedName("stop_points") val stopPoints: List<DiscoveryStopPoint>? = emptyList()
 )
 
 data class DiscoveryJourneyInfo(
-    @SerializedName("id") val id: String,
+    @SerializedName("id") val id: Long, // Đổi sang Long
     @SerializedName("title") val title: String,
     @SerializedName("start_lat") val startLat: Double,
     @SerializedName("start_lon") val startLon: Double,
     @SerializedName("start_time") val startTime: Long
 )
 
-// 3. Các Model phục vụ vẽ bản đồ Read-Only
 data class DiscoveryTrackPoint(
     @SerializedName("latitude") val latitude: Double,
-    @SerializedName("longitude") val longitude: Double
+    @SerializedName("longitude") val longitude: Double,
+    @SerializedName("timestamp") val timestamp: Long? = null
 )
 
 data class DiscoveryStopPoint(
@@ -74,6 +78,7 @@ data class DiscoveryStopPoint(
     @SerializedName("latitude") val latitude: Double,
     @SerializedName("longitude") val longitude: Double,
     @SerializedName("note") val note: String?,
+    @SerializedName("thumbnail_uri") val thumbnailUri: String? = null,
     @SerializedName("media") val media: List<DiscoveryMedia>? = emptyList()
 )
 
