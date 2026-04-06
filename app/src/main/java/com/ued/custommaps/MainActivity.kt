@@ -47,7 +47,12 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun AppNavigation() {
     val context = LocalContext.current
+
     val repository = remember { MapRepository(context) }
+
+    // Sửa dòng này:
+    val repository = remember { MapRepository.getInstance(context) }
+
     val viewModel = remember { MapViewModel(repository) }
     val navController = rememberNavController()
     

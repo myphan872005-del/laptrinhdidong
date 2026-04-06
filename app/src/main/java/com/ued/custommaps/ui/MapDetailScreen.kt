@@ -4,6 +4,8 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.util.Log
+
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
@@ -31,9 +33,18 @@ import org.osmdroid.views.MapView
 fun MapDetailScreen(mapId: String, navController: NavController, viewModel: MapViewModel) {
     val context = LocalContext.current
 
-    // SỬA TẠI ĐÂY: Dùng trực tiếp .value vì ViewModel dùng mutableStateOf
+    // Dùng .value vì ViewModel đang dùng mutableStateOf
     val mapState = viewModel.maps.value
-    val map = mapState.find { it.id == mapId } ?: return
+    val map = mapState.find { it.id == mapId }
+
+    // Log để kiểm tra Recomposition
+    Log.d("DEBUG_APP", "UI: MapDetailScreen vẽ lại - ID: $mapId, isTracking: ${map?.isTracking}, Tọa độ: ${map?.polyline?.size}")
+
+    if (map == null) {
+        Log.e("DEBUG_APP", "UI: Không tìm thấy map ID: $mapId")
+        LaunchedEffect(Unit) { navController.popBackStack() }
+        return
+    }
 
     var showDialog by remember { mutableStateOf(false) }
     var selectedLocation by remember { mutableStateOf<GeoPoint?>(null) }
@@ -53,10 +64,11 @@ fun MapDetailScreen(mapId: String, navController: NavController, viewModel: MapV
         launcher.launch(perms.toTypedArray())
     }
 
-    // Lắng nghe tín hiệu cập nhật từ Service
+    // Lắng nghe tín hiệu từ Service (Dùng Broadcast làm cú hích cuối cùng)
     DisposableEffect(Unit) {
         val receiver = object : android.content.BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
+                Log.d("DEBUG_APP", "UI: Nhận được tín hiệu TRACKING_UPDATE từ Service")
                 viewModel.loadMaps()
             }
         }
@@ -113,9 +125,11 @@ fun MapDetailScreen(mapId: String, navController: NavController, viewModel: MapV
                 modifier = Modifier.padding(bottom = 60.dp),
                 onClick = {
                     if (map.isTracking) {
+                        Log.d("DEBUG_APP", "UI: Nhấn Dừng - Đang gửi lệnh cho Service")
                         context.startService(Intent(context, TrackingService::class.java).apply { action = "STOP_TRACKING" })
                         viewModel.updateTrackingStatus(mapId, false)
                     } else {
+                        Log.d("DEBUG_APP", "UI: Nhấn Bắt đầu - Đang gửi lệnh cho Service")
                         val startIntent = Intent(context, TrackingService::class.java).apply { putExtra("MAP_ID", mapId) }
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                             context.startForegroundService(startIntent)
@@ -137,7 +151,6 @@ fun MapDetailScreen(mapId: String, navController: NavController, viewModel: MapV
                 modifier = Modifier.fillMaxSize(),
                 markers = map.markers,
                 polyline = map.polyline,
-                // SỬA TẠI ĐÂY: Dùng .value thay vì collectAsState
                 mapStyle = viewModel.mapStyle.value,
                 onMapLongClick = { geoPoint ->
                     selectedLocation = geoPoint

@@ -1,0 +1,25 @@
+Test Case 1: Luồng tạo và lưu trữ 
+
+-Mở app -> Nhấn nút + -> Tạo "Hành trình 1". 
+-Quay lại màn hình chính -> Tạo tiếp "Hành trình 2". 
+-Kỳ vọng: Danh sách hiển thị đủ 2 mục. Thử xóa "Hành trình 1", mục 2 phải còn nguyên. 
+
+Test Case 2: Kiểm tra Service & Notification 
+
+-Vào một hành trình -> Nhấn "Bắt đầu ghi". 
+
+-Vuốt thanh thông báo xuống. 
+-Kỳ vọng: Thấy Notification "Đang ghi hành trình..." với nút "Dừng ghi". 
+
+-Nhấn nút "Dừng ghi" ngay trên Notification. 
+-Kỳ vọng: Notification biến mất, nút trong App chuyển lại thành "Bắt đầu ghi". 
+
+Test Case 3: Test GPS thực tế (Quan trọng nhất) 
+
+-Nhấn "Bắt đầu ghi". 
+
+-Tắt màn hình điện thoại (để điện thoại vào túi). 
+-Đi bộ khoảng 20-50 mét (Đừng đứng yên vì bộ lọc 3m của bạn sẽ chặn không lưu). 
+
+-Mở màn hình lên. 
+-Kỳ vọng: Trên bản đồ xuất hiện đường kẻ màu đỏ nối từ vị trí cũ đến vị trí mới. 
