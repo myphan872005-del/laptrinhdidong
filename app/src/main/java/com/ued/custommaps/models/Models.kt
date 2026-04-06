@@ -1,11 +1,16 @@
 package com.ued.custommaps.models
 
+
 import com.google.gson.annotations.SerializedName
 import java.util.UUID
 
 // ==========================================
 // 🗺️ MODELS CŨ (DÀNH CHO BẢN ĐỒ & TRACKING)
 // ==========================================
+
+
+
+
 data class GeoPointData(
     val latitude: Double,
     val longitude: Double,
@@ -31,6 +36,7 @@ data class CustomMap(
 
 enum class MapStyle {
     NORMAL, SATELLITE, TERRAIN
+
 }
 
 // ==========================================
@@ -81,3 +87,5 @@ data class DiscoveryMedia(
     @SerializedName("file_uri") val fileUri: String,
     @SerializedName("media_type") val mediaType: String // "IMAGE" hoặc "VIDEO"
 )
+
+

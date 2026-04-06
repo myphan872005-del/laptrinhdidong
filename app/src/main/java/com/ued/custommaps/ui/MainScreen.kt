@@ -1,7 +1,10 @@
 @file:OptIn(ExperimentalMaterial3Api::class)
 package com.ued.custommaps.ui
 
+import android.Manifest
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -15,7 +18,8 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
-import androidx.compose.ui.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
@@ -28,7 +32,10 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
 import com.ued.custommaps.R
+import com.ued.custommaps.data.JourneyEntity
 import com.ued.custommaps.viewmodel.MapViewModel
 import com.ued.custommaps.worker.SyncWorker
 import java.text.SimpleDateFormat
@@ -41,9 +48,28 @@ fun MainScreen(navController: NavController, viewModel: MapViewModel) {
     val userSession by viewModel.userSession.collectAsState()
     val context = LocalContext.current
 
+    // Logic lấy vị trí
+    val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
     var showDialog by remember { mutableStateOf(false) }
     var newMapTitle by remember { mutableStateOf("") }
-    val filteredJourneys = journeys.filter { it.title.contains(searchQuery, ignoreCase = true) }
+
+    // Logic lọc danh sách
+    val filteredJourneys = remember(searchQuery, journeys) {
+        if (searchQuery.isBlank()) journeys
+        else journeys.filter { it.title.contains(searchQuery, ignoreCase = true) }
+    }
+
+    // Xin quyền vị trí khi vào App
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { _ -> }
+
+    LaunchedEffect(Unit) {
+        permissionLauncher.launch(arrayOf(
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        ))
+    }
 
     Scaffold(
         topBar = {
@@ -52,7 +78,6 @@ fun MainScreen(navController: NavController, viewModel: MapViewModel) {
                     title = { Text("Hành trình của tôi", fontWeight = FontWeight.Bold) },
                     actions = {
                         var expanded by remember { mutableStateOf(false) }
-
                         Box(modifier = Modifier.padding(end = 16.dp)) {
                             AsyncImage(
                                 model = ImageRequest.Builder(LocalContext.current)
@@ -67,25 +92,16 @@ fun MainScreen(navController: NavController, viewModel: MapViewModel) {
                                     .clickable { expanded = true },
                                 contentScale = ContentScale.Crop
                             )
-
-                            DropdownMenu(
-                                expanded = expanded,
-                                onDismissRequest = { expanded = false }
-                            ) {
+                            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                                 DropdownMenuItem(
                                     text = { Text("Thông tin cá nhân") },
-                                    leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
-                                    onClick = {
-                                        expanded = false
-                                        navController.navigate("profile")
-                                    }
+                                    leadingIcon = { Icon(Icons.Default.Person, null) },
+                                    onClick = { expanded = false; navController.navigate("profile") }
                                 )
-                                Divider()
+                                HorizontalDivider()
                                 DropdownMenuItem(
                                     text = { Text("Đăng xuất", color = MaterialTheme.colorScheme.error) },
-                                    leadingIcon = {
-                                        Icon(Icons.Default.ExitToApp, null, tint = MaterialTheme.colorScheme.error)
-                                    },
+                                    leadingIcon = { Icon(Icons.Default.ExitToApp, null, tint = MaterialTheme.colorScheme.error) },
                                     onClick = {
                                         expanded = false
                                         viewModel.logout()
@@ -96,14 +112,7 @@ fun MainScreen(navController: NavController, viewModel: MapViewModel) {
                         }
                     }
                 )
-
-                // Thanh tìm kiếm và Nút Test Đồng Bộ
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                     OutlinedTextField(
                         value = searchQuery,
                         onValueChange = { viewModel.updateSearchQuery(it) },
@@ -111,52 +120,35 @@ fun MainScreen(navController: NavController, viewModel: MapViewModel) {
                         placeholder = { Text("Tìm kiếm...") },
                         leadingIcon = { Icon(Icons.Default.Search, null) },
                         shape = RoundedCornerShape(12.dp),
-                        singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(unfocusedBorderColor = Color.LightGray)
+                        singleLine = true
                     )
-
                     Spacer(modifier = Modifier.width(8.dp))
-
-                    // NÚT TEST ĐỒNG BỘ
                     FilledIconButton(
                         onClick = {
                             val syncRequest = OneTimeWorkRequestBuilder<SyncWorker>().build()
                             WorkManager.getInstance(context).enqueue(syncRequest)
-                            Toast.makeText(context, "Đã ra lệnh Đồng bộ ngầm!", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Đã ra lệnh Đồng bộ!", Toast.LENGTH_SHORT).show()
                         },
                         colors = IconButtonDefaults.filledIconButtonColors(containerColor = MaterialTheme.colorScheme.secondary)
-                    ) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Sync Now")
-                    }
+                    ) { Icon(Icons.Default.Refresh, null) }
                 }
-
             }
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = { showDialog = true },
-                containerColor = MaterialTheme.colorScheme.primaryContainer
-            ) { Icon(Icons.Default.Add, contentDescription = "Thêm mới") }
+            FloatingActionButton(onClick = { showDialog = true }, containerColor = MaterialTheme.colorScheme.primaryContainer) {
+                Icon(Icons.Default.Add, contentDescription = "Thêm mới")
+            }
         }
     ) { padding ->
-
-        // DÙNG BOX LÀM VỎ BỌC CHO TOÀN BỘ PHẦN THÂN ĐỂ CHO PHÉP CHỒNG LÊN NHAU
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
-
-            // 1. Phần hiển thị List Journey
             if (filteredJourneys.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Chưa có hành trình nào. Hãy tạo mới!", color = Color.Gray)
+                    Text(if (searchQuery.isEmpty()) "Chưa có hành trình nào" else "Không tìm thấy kết quả", color = Color.Gray)
                 }
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(
-                        start = 16.dp,
-                        end = 16.dp,
-                        top = 16.dp,
-                        bottom = 80.dp // Thêm bottom padding để list không bị che bởi nút Khám phá
-                    )
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 80.dp)
                 ) {
                     items(filteredJourneys) { journey ->
                         JourneyCard(
@@ -168,22 +160,13 @@ fun MainScreen(navController: NavController, viewModel: MapViewModel) {
                 }
             }
 
-            // 2. NÚT KHÁM PHÁ NẰM ĐỘC LẬP Ở GÓC DƯỚI TRÁI
+            // NÚT KHÁM PHÁ (Bản đồ chung)
             Button(
                 onClick = { navController.navigate("discovery_screen") },
-                shape = RectangleShape, // Ép nút thành hình vuông
-                modifier = Modifier
-                    .align(Alignment.BottomStart) // Bây giờ thì Alignment này hoàn toàn hợp lệ
-                    .padding(16.dp)
-                    .size(60.dp),
+                shape = RectangleShape,
+                modifier = Modifier.align(Alignment.BottomStart).padding(16.dp).size(60.dp),
                 contentPadding = PaddingValues(0.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Explore,
-                    contentDescription = "Discovery",
-                    modifier = Modifier.size(32.dp) // Cho Icon to lên một chút cho đẹp
-                )
-            }
+            ) { Icon(Icons.Default.Explore, contentDescription = "Discovery", modifier = Modifier.size(32.dp)) }
         }
     }
 
@@ -192,69 +175,47 @@ fun MainScreen(navController: NavController, viewModel: MapViewModel) {
             onDismissRequest = { showDialog = false },
             title = { Text("Tạo hành trình mới", fontWeight = FontWeight.Bold) },
             text = {
-                OutlinedTextField(
-                    value = newMapTitle,
-                    onValueChange = { newMapTitle = it },
-                    label = { Text("Tên hành trình") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
+                OutlinedTextField(value = newMapTitle, onValueChange = { newMapTitle = it }, label = { Text("Tên hành trình") }, modifier = Modifier.fillMaxWidth())
             },
             confirmButton = {
                 Button(onClick = {
                     if (newMapTitle.isNotBlank()) {
-                        viewModel.createMap(newMapTitle)
-                        showDialog = false
-                        newMapTitle = ""
+                        fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
+                            .addOnSuccessListener { loc ->
+                                viewModel.createMap(newMapTitle, loc?.latitude ?: 16.0, loc?.longitude ?: 108.0)
+                                showDialog = false; newMapTitle = ""
+                            }
                     }
-                }) { Text("Tạo ngay") }
+                }) { Text("Bắt đầu") }
             },
-            dismissButton = {
-                TextButton(onClick = { showDialog = false }) { Text("Hủy") }
-            }
+            dismissButton = { TextButton(onClick = { showDialog = false }) { Text("Hủy") } }
         )
     }
 }
 
 @Composable
-fun JourneyCard(journey: com.ued.custommaps.data.JourneyEntity, onClick: () -> Unit, onDelete: () -> Unit) {
+fun JourneyCard(journey: JourneyEntity, onClick: () -> Unit, onDelete: () -> Unit) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 6.dp)
-            .clickable { onClick() },
+        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp).clickable { onClick() },
         elevation = CardDefaults.cardElevation(2.dp),
         shape = RoundedCornerShape(12.dp)
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                Icons.Default.LocationOn,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(32.dp).padding(end = 12.dp)
-            )
+        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.LocationOn, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(32.dp).padding(end = 12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(journey.title, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
                     Spacer(modifier = Modifier.width(8.dp))
                     if (journey.isSynced) {
-                        Icon(Icons.Default.Done, contentDescription = "Synced", tint = Color(0xFF4CAF50), modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Done, null, tint = Color(0xFF4CAF50), modifier = Modifier.size(16.dp))
                     } else {
-                        Icon(Icons.Default.Warning, contentDescription = "Unsynced", tint = Color(0xFFFFC107), modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Warning, null, tint = Color(0xFFFFC107), modifier = Modifier.size(16.dp))
                     }
                 }
-                Text(
-                    SimpleDateFormat("HH:mm - dd/MM/yyyy", Locale.getDefault()).format(Date(journey.startTime)),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray
-                )
+                val date = SimpleDateFormat("HH:mm - dd/MM/yyyy", Locale.getDefault()).format(Date(journey.startTime))
+                Text(date, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
             }
-            IconButton(onClick = onDelete) {
-                Icon(Icons.Default.Delete, contentDescription = "Xóa", tint = Color(0xFFE57373))
-            }
+            IconButton(onClick = onDelete) { Icon(Icons.Default.Delete, null, tint = Color(0xFFE57373)) }
         }
     }
 }

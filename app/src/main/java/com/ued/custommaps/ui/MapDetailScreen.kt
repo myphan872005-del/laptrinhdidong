@@ -15,6 +15,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -118,7 +119,7 @@ fun MapDetailScreen(mapId: Long, navController: NavController, viewModel: MapVie
         }
     }
 
-    // Load Bitmaps cho Markers
+    // Load Bitmaps cho Markers (Hình ảnh nhỏ trên bản đồ)
     LaunchedEffect(stopPoints) {
         if (stopPoints.isNotEmpty()) {
             viewModel.loadBitmapsForStopPoints(context, stopPoints)
@@ -159,7 +160,6 @@ fun MapDetailScreen(mapId: Long, navController: NavController, viewModel: MapVie
         bottomBar = {
             BottomAppBar {
                 Row(Modifier.fillMaxWidth(), Arrangement.SpaceEvenly, Alignment.CenterVertically) {
-                    // NÚT GHI (TRACKING): Đã sửa logic gọi Service chuẩn
                     Button(
                         onClick = { viewModel.toggleTracking(context, journeyId) },
                         colors = ButtonDefaults.buttonColors(
@@ -217,11 +217,7 @@ fun MapDetailScreen(mapId: Long, navController: NavController, viewModel: MapVie
                                 icon = BitmapDrawable(context.resources, cachedBitmap)
                                 setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
                             } else {
-                                val fallbackIconId = when {
-                                    item.mediaList.any { it.mediaType == "IMAGE" } -> android.R.drawable.ic_menu_camera
-                                    item.mediaList.any { it.mediaType == "VIDEO" } -> android.R.drawable.ic_menu_slideshow
-                                    else -> android.R.drawable.ic_menu_mylocation
-                                }
+                                val fallbackIconId = android.R.drawable.ic_menu_mylocation
                                 icon = ContextCompat.getDrawable(context, fallbackIconId)
                                 setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
                             }
@@ -233,23 +229,13 @@ fun MapDetailScreen(mapId: Long, navController: NavController, viewModel: MapVie
                         m.overlays.add(marker)
                     }
 
-                    // Center camera logic
+                    // Khởi tạo vị trí Camera
                     if (!isMapCentered) {
                         val startLat = currentJourney?.startLat ?: 0.0
                         if (startLat != 0.0) {
                             m.controller.setZoom(16.0)
                             m.controller.setCenter(GeoPoint(startLat, currentJourney!!.startLon))
                             isMapCentered = true
-                        } else {
-                            locationOverlay.myLocation?.let { myLoc ->
-                                m.controller.setZoom(16.0)
-                                m.controller.setCenter(myLoc)
-                                viewModel.updateJourneyStartLocation(currentJourney!!, myLoc.latitude, myLoc.longitude)
-                                isMapCentered = true
-                            } ?: run {
-                                m.controller.setZoom(6.0)
-                                m.controller.setCenter(GeoPoint(16.0, 108.0))
-                            }
                         }
                     }
                     m.invalidate()
@@ -268,37 +254,19 @@ fun MapDetailScreen(mapId: Long, navController: NavController, viewModel: MapVie
         }
     }
 
-    // --- DIALOGS ---
-    if (showShareDialog) {
-        AlertDialog(
-            onDismissRequest = { showShareDialog = false },
-            title = { Text("Chia sẻ hành trình") },
-            text = { Text("Đăng hành trình này lên cộng đồng Khám phá?") },
-            confirmButton = {
-                Button(onClick = {
-                    showShareDialog = false
-                    currentJourney?.let { journey ->
-                        viewModel.syncJourneyToServer(journey) { _, msg ->
-                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-                        }
-                    }
-                }) { Text("Chia sẻ") }
-            },
-            dismissButton = { TextButton(onClick = { showShareDialog = false }) { Text("Hủy") } }
-        )
-    }
+    // --- DIALOGS & BOTTOM SHEETS ---
 
     if (showStopDialog) {
         AlertDialog(
             onDismissRequest = { showStopDialog = false },
-            title = { Text("Check-in") },
+            title = { Text("Lưu dấu chân") },
             text = {
                 Column {
                     OutlinedTextField(value = stopNote, onValueChange = { stopNote = it }, label = { Text("Ghi chú") })
                     Spacer(Modifier.height(8.dp))
                     Button(onClick = {
                         launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo))
-                    }) { Text("Chọn media (${selectedMediaUris.size})") }
+                    }) { Text("Chọn ảnh/video (${selectedMediaUris.size})") }
                 }
             },
             confirmButton = {
@@ -372,22 +340,11 @@ fun MapDetailScreen(mapId: Long, navController: NavController, viewModel: MapVie
 @Composable
 fun StopListItem(item: StopPointWithMedia, onClick: () -> Unit) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp)
-            .clickable(onClick = onClick),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp)
     ) {
-        Row(
-            modifier = Modifier.padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(60.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Color.LightGray)
-            ) {
+        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(modifier = Modifier.size(60.dp).clip(RoundedCornerShape(8.dp)).background(Color.LightGray)) {
                 if (item.mediaList.isNotEmpty()) {
                     AsyncImage(
                         model = item.mediaList.first().fileUri,
@@ -396,34 +353,18 @@ fun StopListItem(item: StopPointWithMedia, onClick: () -> Unit) {
                         modifier = Modifier.fillMaxSize()
                     )
                 } else {
-                    Icon(
-                        imageVector = Icons.Default.Place,
-                        contentDescription = null,
-                        modifier = Modifier.align(Alignment.Center),
-                        tint = Color.Gray
-                    )
+                    Icon(Icons.Default.Place, null, modifier = Modifier.align(Alignment.Center), tint = Color.Gray)
                 }
             }
-
             Spacer(modifier = Modifier.width(12.dp))
-
             Column(modifier = Modifier.weight(1f)) {
+                Text(item.stopPoint.note.ifBlank { "Điểm dừng không tên" }, fontWeight = FontWeight.Bold)
                 Text(
-                    text = item.stopPoint.note.ifBlank { "Điểm dừng không tên" },
-                    fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.bodyLarge
-                )
-                Text(
-                    text = SimpleDateFormat("HH:mm - dd/MM/yyyy", Locale.getDefault())
-                        .format(Date(item.stopPoint.timestamp)),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray
+                    SimpleDateFormat("HH:mm - dd/MM/yyyy", Locale.getDefault()).format(Date(item.stopPoint.timestamp)),
+                    style = MaterialTheme.typography.bodySmall, color = Color.Gray
                 )
             }
-
-            Badge(containerColor = MaterialTheme.colorScheme.primaryContainer) {
-                Text("${item.mediaList.size}")
-            }
+            Badge { Text("${item.mediaList.size}") }
         }
     }
 }

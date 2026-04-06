@@ -23,6 +23,10 @@
     <application
         android:name=".GeoApp"
         android:allowBackup="true"
+<<<<<<< HEAD
+=======
+
+>>>>>>> 053a3f370073c3f748f1d1ec956ae6832c059cfe
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
@@ -48,6 +52,7 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+<<<<<<< HEAD
 
         <provider
             android:name="androidx.startup.InitializationProvider"
@@ -59,6 +64,8 @@
                 android:value="androidx.startup"
                 tools:node="remove" />
         </provider>
+=======
+>>>>>>> 053a3f370073c3f748f1d1ec956ae6832c059cfe
     </application>
 
 </manifest>

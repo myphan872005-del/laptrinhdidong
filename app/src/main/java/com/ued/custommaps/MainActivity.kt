@@ -9,14 +9,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
-import com.ued.custommaps.ui.AppNavigation // TRỎ ĐÚNG VỀ FILE RIÊNG
+import com.ued.custommaps.ui.AppNavigation
 import com.ued.custommaps.ui.theme.UEDCustomMapsTheme
 import dagger.hilt.android.AndroidEntryPoint
 import org.osmdroid.config.Configuration
 
-@AndroidEntryPoint
+@AndroidEntryPoint //  Để Hilt khởi tạo và bơm dữ liệu cho toàn bộ App
 class MainActivity : ComponentActivity() {
 
+    // Trình xin quyền vị trí ngay khi mở App (Quan trọng cho OSMDroid)
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { _ -> }
@@ -24,23 +25,33 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // 1. Xin quyền GPS
         requestPermissionLauncher.launch(
-            arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+            arrayOf(
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            )
         )
 
-        Configuration.getInstance().load(this, getSharedPreferences("osmdroid", MODE_PRIVATE))
+        // 2. Cấu hình OSMDroid để load bản đồ mượt mà
+        Configuration.getInstance().load(
+            this,
+            getSharedPreferences("osmdroid", MODE_PRIVATE)
+        )
+        // Thiết lập User Agent cho OSMDroid (Tránh bị chặn server bản đồ)
+        Configuration.getInstance().userAgentValue = packageName
 
+        // 3. Giao diện Compose
         setContent {
             UEDCustomMapsTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    // GỌI HÀM NÀY: Nó sẽ tự dùng logic check Login/Main
+
                     AppNavigation()
                 }
             }
         }
     }
 }
-// TUYỆT ĐỐI KHÔNG VIẾT THÊM HÀM AppNavigation() NÀO Ở ĐÂY NỮA!

@@ -15,19 +15,28 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
+
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase {
-        return Room.databaseBuilder(context, AppDatabase::class.java, "geo_db")
-            .fallbackToDestructiveMigration() // FIX: Xóa dữ liệu cũ để tạo bảng mới theo version 2
+        return Room.databaseBuilder(
+            context,
+            AppDatabase::class.java,
+            "geo_db"
+        )
+            .fallbackToDestructiveMigration() // Tự dọn dẹp data cũ nếu đổi version để tránh Crash
             .build()
     }
 
     @Provides
-    fun provideJourneyDao(db: AppDatabase): JourneyDao = db.journeyDao()
+    @Singleton
+    fun provideJourneyDao(db: AppDatabase): JourneyDao {
+        return db.journeyDao()
+    }
 
     @Provides
-    fun provideDiscoveryDao(database: AppDatabase): DiscoveryDao {
-        return database.discoveryDao()
+    @Singleton
+    fun provideDiscoveryDao(db: AppDatabase): DiscoveryDao {
+        return db.discoveryDao()
     }
 }

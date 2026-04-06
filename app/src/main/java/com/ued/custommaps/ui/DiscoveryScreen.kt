@@ -64,22 +64,21 @@ fun DiscoveryScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .background(Color(0xFFF5F5F5)) // Màu nền xám nhạt giống Facebook/Insta
+                .background(Color(0xFFF5F5F5))
         ) {
-            when (uiState) {
+            when (val state = uiState) {
                 is DiscoveryUiState.Loading -> {
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 }
                 is DiscoveryUiState.Error -> {
-                    val errorMessage = (uiState as DiscoveryUiState.Error).message
                     Text(
-                        text = "Lỗi tải dữ liệu:\n$errorMessage",
+                        text = "Lỗi tải dữ liệu:\n${state.message}",
                         color = MaterialTheme.colorScheme.error,
                         modifier = Modifier.align(Alignment.Center)
                     )
                 }
                 is DiscoveryUiState.Success -> {
-                    val posts = (uiState as DiscoveryUiState.Success).data
+                    val posts = state.data
                     if (posts.isEmpty()) {
                         Text(
                             text = "Chưa có hành trình nào được chia sẻ.",
@@ -95,7 +94,6 @@ fun DiscoveryScreen(
                                 DiscoveryPostCard(
                                     post = post,
                                     onClick = {
-                                        // ĐÃ MỞ KHÓA: Chuyển sang màn hình Read-Only Map Detail
                                         navController.navigate("discovery_detail/${post.postId}")
                                     }
                                 )
@@ -110,10 +108,8 @@ fun DiscoveryScreen(
 
 @Composable
 fun DiscoveryPostCard(post: DiscoveryPost, onClick: () -> Unit) {
-    // 1. Lấy Title trực tiếp từ Object (Cực gọn, không cần parse thủ công nữa)
     val journeyTitle = post.payload?.journey?.title ?: "Hành trình không tên"
 
-    // 2. Format thời gian
     val formattedTime = try {
         val parser = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
         parser.timeZone = TimeZone.getTimeZone("UTC")
@@ -133,7 +129,6 @@ fun DiscoveryPostCard(post: DiscoveryPost, onClick: () -> Unit) {
         shape = RoundedCornerShape(16.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            // --- HEADER: Avatar + Tên + Thời gian ---
             Row(verticalAlignment = Alignment.CenterVertically) {
                 AsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)
@@ -154,17 +149,12 @@ fun DiscoveryPostCard(post: DiscoveryPost, onClick: () -> Unit) {
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp
                     )
-                    Text(
-                        text = formattedTime,
-                        color = Color.Gray,
-                        fontSize = 12.sp
-                    )
+                    Text(text = formattedTime, color = Color.Gray, fontSize = 12.sp)
                 }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // --- BODY: Nội dung hành trình ---
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     imageVector = Icons.Default.Map,
@@ -173,14 +163,9 @@ fun DiscoveryPostCard(post: DiscoveryPost, onClick: () -> Unit) {
                     modifier = Modifier.size(24.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = journeyTitle,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
+                Text(text = journeyTitle, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
             }
 
-            // (Tạm thời để một khung xám làm Placeholder cho Thumbnail bản đồ/ảnh)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -194,15 +179,14 @@ fun DiscoveryPostCard(post: DiscoveryPost, onClick: () -> Unit) {
             }
 
             Spacer(modifier = Modifier.height(12.dp))
-            Divider(color = Color(0xFFEEEEEE), thickness = 1.dp)
+            HorizontalDivider(color = Color(0xFFEEEEEE), thickness = 1.dp)
             Spacer(modifier = Modifier.height(8.dp))
 
-            // --- FOOTER: Nút Like ---
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                IconButton(onClick = { /* TODO: Xử lý thả tim */ }) {
+                IconButton(onClick = { /* Xử lý */ }) {
                     Icon(
                         imageVector = Icons.Default.FavoriteBorder,
                         contentDescription = "Like",
