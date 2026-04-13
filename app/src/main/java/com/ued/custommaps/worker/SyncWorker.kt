@@ -42,23 +42,50 @@ class SyncWorker @AssistedInject constructor(
             if (unsyncedJourneys.isEmpty()) return Result.success()
 
             var isAllSuccess = true
+            var isUnauthorized = false // 🛑 Cờ đánh dấu Token đã chết
 
             for (journey in unsyncedJourneys) {
                 try {
-                    if (journey.isDeleted) continue // Hành trình nào xóa rồi thì thôi
+                    // ==========================================
+                    // 🚀 BẢN VÁ LỖI 1: XỬ LÝ HÀNH TRÌNH BỊ XÓA
+                    // ==========================================
+                    if (journey.isDeleted) {
+                        Log.d("SYNC_DEBUG", "🗑 Hành trình đã xóa, đang gửi tín hiệu Xóa mềm lên Server...")
+                        val deleteRequest = SyncJourneyRequest(
+                            localId = journey.id,
+                            title = journey.title,
+                            startTime = journey.startTime,
+                            startLat = journey.startLat,
+                            startLon = journey.startLon,
+                            updatedAt = System.currentTimeMillis(),
+                            isDeleted = 1, // Đánh dấu xóa mềm
+                            isPublic = if (journey.isPublic) 1 else 0,
+                            trackPoints = emptyList(), // Không gửi tọa độ dư thừa
+                            stopPoints = emptyList()   // Không gửi ảnh dư thừa
+                        )
 
+                        val response = apiService.syncJourney(token, deleteRequest)
+                        if (response.isSuccessful) {
+                            repository.markJourneyAsSynced(journey.id)
+                            Log.d("SYNC_DEBUG", "✨ Đã báo Server xóa thành công: ${journey.title}")
+                        } else {
+                            Log.e("SYNC_DEBUG", "💥 Lỗi báo Xóa (Code: ${response.code()})")
+                            isAllSuccess = false
+                            if (response.code() == 401) isUnauthorized = true
+                        }
+                        continue // Báo xóa xong thì nhảy sang hành trình tiếp theo, bỏ qua khúc dưới!
+                    }
+
+                    // ==========================================
+                    // KHÚC DƯỚI LÀ XỬ LÝ HÀNH TRÌNH BÌNH THƯỜNG
+                    // ==========================================
                     Log.d("SYNC_DEBUG", "📦 Đang đóng gói hành trình: ${journey.title}")
 
-                    // --- XỬ LÝ ĐIỂM DỪNG (STOP POINTS) ---
                     val stopPointsList = repository.getStopPointsForSync(journey.id)
-
                     val syncStopPoints = stopPointsList.map { spWithMedia ->
                         val sp = spWithMedia.stopPoint
-
-                        // 📤 3. Upload Media (Ảnh/Video) của điểm dừng này
                         val mediaToUpload = spWithMedia.mediaList.filter { media ->
                             val uri = media.fileUri ?: ""
-                            // Chỉ upload những file còn nằm ở bộ nhớ máy (local)
                             uri.contains("data/user/0") || uri.startsWith("file://") || uri.startsWith("/")
                         }
 
@@ -73,38 +100,30 @@ class SyncWorker @AssistedInject constructor(
                                     val requestFile = file.asRequestBody(mimeType.toMediaTypeOrNull())
                                     MultipartBody.Part.createFormData("files", file.name, requestFile)
                                 } else {
-                                    Log.e("SYNC_DEBUG", "    ❌ File không tồn tại: $cleanPath")
                                     null
                                 }
                             }
 
                             if (multipartParts.isNotEmpty()) {
-                                Log.d("SYNC_DEBUG", "    📤 Đang gửi ${multipartParts.size} file lên Server...")
                                 val uploadRes = apiService.uploadMultipleMedia(token, multipartParts)
-
                                 if (uploadRes.isSuccessful) {
                                     val serverResponses = uploadRes.body()?.data ?: emptyList()
-                                    // Cập nhật lại đường dẫn Server vào Database ở máy
                                     mediaToUpload.forEachIndexed { index, oldMedia ->
                                         if (index < serverResponses.size) {
-                                            val serverPath = serverResponses[index].serverPath
-                                            repository.updateMediaUri(oldMedia.id, serverPath)
-                                            Log.d("SYNC_DEBUG", "    📝 Đã đổi link máy thành link Server: $serverPath")
+                                            repository.updateMediaUri(oldMedia.id, serverResponses[index].serverPath)
                                         }
                                     }
+                                } else if (uploadRes.code() == 401) {
+                                    isUnauthorized = true
                                 }
                             }
                         }
 
-                        // 4. Lấy lại list media MỚI (đã có link server) để gửi kèm JSON Sync
                         val updatedMediaList = repository.getMediaForStopPointDirect(sp.id)
-
-                        // 🚀 5. HOÁN ĐỔI THUMBNAIL: Đảm bảo thumbnail gửi lên là link Server
                         var finalThumbnail = sp.thumbnailUri
                         updatedMediaList.forEach { m ->
                             if (m.fileUri?.startsWith("/uploads") == true) {
                                 val fileName = m.fileUri.substringAfterLast("/")
-                                // Nếu thumbnail cũ của sếp có chứa tên file vừa upload -> lấy link server luôn
                                 if (sp.thumbnailUri?.contains(fileName) == true) {
                                     finalThumbnail = m.fileUri
                                 }
@@ -125,13 +144,8 @@ class SyncWorker @AssistedInject constructor(
                         )
                     }
 
-                    // --- XỬ LÝ TỌA ĐỘ (TRACK POINTS) ---
                     val trackPointsList = repository.getTrackPointsList(journey.id)
 
-                    // 📊 Log này cực quan trọng để sếp check xem có bao nhiêu điểm đã được ghi
-                    Log.d("SYNC_DEBUG", "📊 [KIỂM TRA] Hành trình '${journey.title}' có ${trackPointsList.size} tọa độ.")
-
-                    // 6. Gửi "Gói hàng tổng thể" lên API Sync
                     val syncRequest = SyncJourneyRequest(
                         localId = journey.id,
                         title = journey.title,
@@ -139,7 +153,7 @@ class SyncWorker @AssistedInject constructor(
                         startLat = journey.startLat,
                         startLon = journey.startLon,
                         updatedAt = System.currentTimeMillis(),
-                        isDeleted = if (journey.isDeleted) 1 else 0,
+                        isDeleted = 0,
                         isPublic = if (journey.isPublic) 1 else 0,
                         trackPoints = trackPointsList.map {
                             SyncTrackPoint(it.segmentId, it.latitude, it.longitude, it.timestamp)
@@ -154,12 +168,21 @@ class SyncWorker @AssistedInject constructor(
                     } else {
                         Log.e("SYNC_DEBUG", "💥 Lỗi Sync API (Code: ${response.code()}): ${response.errorBody()?.string()}")
                         isAllSuccess = false
+                        if (response.code() == 401) isUnauthorized = true
                     }
 
                 } catch (e: Exception) {
                     Log.e("SYNC_DEBUG", "🔥 Lỗi tại hành trình ${journey.id}: ${e.message}")
                     isAllSuccess = false
                 }
+            }
+
+            // ==========================================
+            // 🚀 BẢN VÁ LỖI 2: CHỐT CHẶN VÒNG LẶP 401
+            // ==========================================
+            if (isUnauthorized) {
+                Log.e("SYNC_DEBUG", "🛑 Lỗi 401! Hủy luôn Worker để không tốn pin vô ích chờ user login lại.")
+                return Result.failure() // Failure: Hủy bỏ hoàn toàn thay vì bắt máy Retry liên tục
             }
 
             return if (isAllSuccess) Result.success() else Result.retry()
