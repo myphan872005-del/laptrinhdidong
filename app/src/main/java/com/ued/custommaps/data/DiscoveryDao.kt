@@ -3,9 +3,13 @@ package com.ued.custommaps.data
 import androidx.room.*
 import kotlinx.coroutines.flow.Flow
 
+// ==========================================
+// 🚜 DATA ACCESS OBJECT CHO KHÁM PHÁ
+// ==========================================
+
 @Dao
 interface DiscoveryDao {
-    // Chèn dữ liệu mới (Nếu trùng ID thì ghi đè - chuẩn Cache)
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertJourney(journey: DiscoveryJourneyEntity)
 
@@ -18,20 +22,18 @@ interface DiscoveryDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMedia(media: List<DiscoveryMediaEntity>)
 
-    // Truy vấn dữ liệu để hiển thị lên Map
     @Query("SELECT * FROM discovery_journeys WHERE journeyId = :id")
     fun getJourneyById(id: Long): Flow<DiscoveryJourneyEntity?>
 
-    @Query("SELECT * FROM discovery_track_points WHERE journeyId = :id")
+    @Query("SELECT * FROM discovery_track_points WHERE journeyId = :id ORDER BY id ASC")
     fun getTrackPoints(id: Long): Flow<List<DiscoveryTrackPointEntity>>
 
+    // Lấy nguyên cụm StopPoint + Media trả thẳng ra UI
+    @Transaction
     @Query("SELECT * FROM discovery_stop_points WHERE journeyId = :id")
-    fun getStopPoints(id: Long): Flow<List<DiscoveryStopPointEntity>>
+    fun getStopPointsWithMedia(id: Long): Flow<List<DiscoveryStopPointWithMedia>>
 
-    @Query("SELECT * FROM discovery_media WHERE stopId = :stopId")
-    fun getMediaForStop(stopId: Long): Flow<List<DiscoveryMediaEntity>>
-
-    // Xóa cache cũ nếu cần
+    // Gọi 1 lệnh này là dọn sạch sẽ toàn bộ Cache nhờ tính năng CASCADE
     @Query("DELETE FROM discovery_journeys")
     suspend fun clearCache()
 }

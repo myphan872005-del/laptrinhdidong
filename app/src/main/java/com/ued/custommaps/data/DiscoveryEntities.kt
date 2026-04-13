@@ -1,12 +1,14 @@
 package com.ued.custommaps.data
 
-import androidx.room.Entity
-import androidx.room.PrimaryKey
+import androidx.room.*
 
-// 1. Lưu thông tin hành trình từ Server
+// ==========================================
+// 🏗️ BỘ BẢNG CACHE CHO MỤC KHÁM PHÁ
+// ==========================================
+
 @Entity(tableName = "discovery_journeys")
 data class DiscoveryJourneyEntity(
-    @PrimaryKey val journeyId: Long,
+    @PrimaryKey val journeyId: Long, // 🚀 Dùng ID từ Server (Original ID)
     val title: String,
     val startTime: Long,
     val startLat: Double,
@@ -15,31 +17,66 @@ data class DiscoveryJourneyEntity(
     val createdAt: String
 )
 
-// 2. Lưu các điểm chạy (Track Points) của hành trình đó
-@Entity(tableName = "discovery_track_points")
+@Entity(
+    tableName = "discovery_track_points",
+    foreignKeys = [ForeignKey(
+        entity = DiscoveryJourneyEntity::class,
+        parentColumns = ["journeyId"],
+        childColumns = ["journeyId"],
+        onDelete = ForeignKey.CASCADE // Xóa hành trình -> Tự động xóa tọa độ
+    )],
+    indices = [Index("journeyId")]
+)
 data class DiscoveryTrackPointEntity(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @PrimaryKey(autoGenerate = true) val id: Long = 0, // Cái này OK nếu sếp xóa sạch bảng rồi insert lại mỗi khi xem bài mới
     val journeyId: Long,
     val latitude: Double,
     val longitude: Double
 )
-
-// 3. Lưu các điểm dừng (Stop Points)
-@Entity(tableName = "discovery_stop_points")
+@Entity(
+    tableName = "discovery_stop_points",
+    foreignKeys = [ForeignKey(
+        entity = DiscoveryJourneyEntity::class,
+        parentColumns = ["journeyId"],
+        childColumns = ["journeyId"],
+        onDelete = ForeignKey.CASCADE // Xóa hành trình -> Tự động xóa điểm dừng
+    )],
+    indices = [Index("journeyId")]
+)
 data class DiscoveryStopPointEntity(
-    @PrimaryKey val stopId: Long, // ID từ server trả về
+    @PrimaryKey val stopId: Long,
     val journeyId: Long,
     val latitude: Double,
     val longitude: Double,
-    val note: String,
-    val timestamp: Long
+    val note: String?,
+    val thumbnailUri: String?, // Bổ sung ảnh đại diện
+    val timestamp: Long,
+
 )
 
-// 4. Lưu Media của từng điểm dừng
-@Entity(tableName = "discovery_media")
+@Entity(
+    tableName = "discovery_media",
+    foreignKeys = [ForeignKey(
+        entity = DiscoveryStopPointEntity::class,
+        parentColumns = ["stopId"],
+        childColumns = ["stopId"],
+        onDelete = ForeignKey.CASCADE // Xóa điểm dừng -> Tự động xóa Media
+    )],
+    indices = [Index("stopId")]
+)
 data class DiscoveryMediaEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val stopId: Long,
     val fileUri: String,
     val mediaType: String
+)
+
+// 🚀 DATA CLASS GOM NHÓM ĐỂ TRUY VẤN UI
+data class DiscoveryStopPointWithMedia(
+    @Embedded val stopPoint: DiscoveryStopPointEntity,
+    @Relation(
+        parentColumn = "stopId",
+        entityColumn = "stopId"
+    )
+    val mediaList: List<DiscoveryMediaEntity>
 )

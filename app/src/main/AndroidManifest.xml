@@ -31,13 +31,15 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.UEDCustomMaps"
         android:usesCleartextTraffic="true"
+
         tools:targetApi="31">
 
         <service
             android:name=".TrackingService"
             android:enabled="true"
             android:exported="false"
-            android:foregroundServiceType="location" />
+            android:foregroundServiceType="location"
+            android:stopWithTask="false" />
 
         <activity
             android:name=".MainActivity"

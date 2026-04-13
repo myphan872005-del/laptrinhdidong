@@ -124,4 +124,7 @@ dependencies {
 // Hỗ trợ Hilt tiêm dependency vào WorkManager
     implementation("androidx.hilt:hilt-work:1.2.0")
     kapt("androidx.hilt:hilt-compiler:1.2.0")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.11.0")
+    implementation("androidx.compose.material:material-icons-extended:1.6.0")
+
 }

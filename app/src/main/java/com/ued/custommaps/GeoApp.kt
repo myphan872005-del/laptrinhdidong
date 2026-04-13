@@ -8,6 +8,7 @@ import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
+import android.util.Log
 
 @HiltAndroidApp
 class GeoApp : Application(), Configuration.Provider {
@@ -19,6 +20,7 @@ class GeoApp : Application(), Configuration.Provider {
         super.onCreate()
         // Tạo Channel ngay khi App start
         createNotificationChannel()
+        Log.d("GEO_APP", "🚀 Ứng dụng đã khởi tạo thành công!")
     }
 
     private fun createNotificationChannel() {
